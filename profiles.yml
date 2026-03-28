@@ -1,0 +1,13 @@
+rs_medallion:
+  target: DEV
+  outputs:
+    DEV:
+      type: snowflake
+      account: "RSG-ENTDATADEV"  # Replace with your actual account
+      user: gadean@repsrv.com
+      authenticator: externalbrowser
+      role: "AZUREAD-MDA-SNOWFLAKE-LOCALDEVELOPER"  # Replace with your role
+      database: "AUDIT"  # Replace with target database
+      warehouse: "ANALYTICS_WH"  # Replace with warehouse name
+      schema: "DATA_TRANSFORMATION"  # Replace with schema name
+      threads: 4

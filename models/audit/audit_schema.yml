@@ -1,0 +1,57 @@
+version: 2
+
+models:
+
+  - name: DBT_RUN_RESULTS
+    description: "Custom dbt run results table whose schema is aligned with the open-source Elementary dbt data observability package, enabling compatibility with Elementary's monitoring and reporting models"
+    columns:
+      - name: model_execution_id
+        description: "Unique execution id (invocation_id.unique_id)"
+      - name: unique_id
+        description: "dbt unique id of the node"
+      - name: invocation_id
+        description: "dbt invocation id for this run"
+      - name: generated_at
+        description: "Result generation time (UTC ISO string)"
+      - name: created_at
+        description: "Record creation time (warehouse time)"
+      - name: name
+        description: "Node name"
+      - name: message
+        description: "Adapter/message text"
+      - name: status
+        description: "Execution status (success, error, fail, skipped)"
+      - name: resource_type
+        description: "dbt resource type (model, test, seed, snapshot, etc.)"
+      - name: execution_time
+        description: "Execution duration in seconds"
+      - name: execute_started_at
+        description: "Execution start time (UTC ISO string)"
+      - name: execute_completed_at
+        description: "Execution end time (UTC ISO string)"
+      - name: compile_started_at
+        description: "Compile start time (UTC ISO string)"
+      - name: compile_completed_at
+        description: "Compile end time (UTC ISO string)"
+      - name: rows_affected
+        description: "Rows affected as reported by adapter"
+      - name: rows_inserted
+        description: "Rows inserted as per result_scan of query_id"
+      - name: rows_updated
+        description: "Rows updated as per result_scan of query_id"
+      - name: rows_deleted
+        description: "Rows deleted as per result_scan of query_id"
+      - name: full_refresh
+        description: "Whether run was executed with FULL_REFRESH"
+      - name: compiled_code
+        description: "Compiled SQL"
+      - name: failures
+        description: "Number of failures (for tests)"
+      - name: query_id
+        description: "Warehouse query id"
+      - name: thread_id
+        description: "dbt thread id"
+      - name: materialization
+        description: "Materialization configured on the node"
+      - name: adapter_response
+        description: "Raw adapter response JSON"

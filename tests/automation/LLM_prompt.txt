@@ -1,0 +1,96 @@
+You are an expert data engineer specializing in dbt Core, data quality engineering, and automated test generation.
+
+Your task is to generate a complete dbt test suite for a specific dbt model.  
+The output must be a valid YAML block that can be merged directly into the model’s existing schema YAML file.
+
+---
+
+## MODEL NAME
+<DBT MODEL FILE NAME>
+
+## MODEL YAML (schema file)
+Paste the full YAML block for the model here:
+<DBT MODEL YML FILE NAME>
+
+---
+
+## REQUIREMENTS FOR THE GENERATED TEST SUITE
+
+IMPORTANT: DO NOT DUPLICATE TEST CASES.
+
+### 1. Generic Column-Level Tests
+For every column, generate appropriate dbt generic tests based on:
+- datatype
+- description
+- metadata
+- constraints implied by naming conventions (e.g., *_id, *_key, *_ts)
+
+Generic tests must include:
+- not_null
+- unique (only for PKs or natural keys)
+- accepted_values (if description or metadata implies enumerations)
+- relationships (if column name implies FK/PK to another model or source)
+- tests for valid timestamp formats (if datatype is timestamp/date)
+- tests for positive numeric values (if numeric and description implies counts, amounts, or metrics)
+
+### 2. Primary Key & Natural Key Tests
+- Identify the primary key or natural key columns from YAML or naming patterns.
+- Assign **severity: error** for:
+  - unique
+  - not_null
+  - relationships (if FK/PK)
+- These tests must be grouped at the top of the YAML.
+
+### 3. Freshness Tests
+If the model contains any timestamp column that represents ingestion, update, or event time (e.g., created_at, updated_at, load_ts, event_ts):
+- Add a freshness test block under `sources:` or `models:` depending on the YAML structure.
+- Use:
+  - `loaded_at_field: <timestamp_column>`
+  - `warn_after:` and `error_after:` thresholds based on reasonable defaults (e.g., warn after 24h, error after 48h).
+
+### 4. Relationship Tests
+For any column that appears to be a foreign key (e.g., *_id, *_key, *_pk, *_fk, *_sk):
+- Add a `relationships:` test referencing the parent model or source table.
+- Severity:
+  - **error** for critical relationships (PK/FK)
+  - **warn** for optional relationships
+
+If the YAML includes metadata linking to a source table, use that.
+
+### 5. Accepted Values Tests
+If the YAML description or metadata implies enumerations (e.g., status, type, category):
+- Add an `accepted_values:` test with a list of allowed values.
+- Severity: warn unless the column is critical.
+
+### 6. Custom SQL Tests
+Reference any existing test case SQLs from \enterprise-data-mda\infrastructure\dbt\rsi_medallion_dbt\tests\generic path.
+If any test cases sqls are missing from here, please add them before referenceing them in YAML. Following the same dynamically functionality as other sql test cases in this folder.
+Reference these test cases under the appropriate columns in the models YML file.
+- datatype validation (e.g., numeric fields contain only numeric values)
+- semantic validation (e.g., dates not in the future, amounts not negative)
+- metadata-driven rules (e.g., column must match regex, must be uppercase, must be ISO format)
+
+Custom SQL tests must:
+- Live under `tests:` at the model level
+- Use dbt’s singular test format:
+
+### 7. Severity Rules
+- **error** for:
+- PK uniqueness
+- PK not_null
+- FK relationships
+- Any column explicitly marked as required in YAML metadata
+
+- **warn** for:
+- accepted_values
+- non-critical not_null
+- non-critical relationships
+- datatype checks
+- semantic checks
+
+### 8. Output Format
+Your final answer must be ONLY valid YAML test cases that merge seamlessly with the existing yml file while keeping all original descriptions, datatypes, constraints, etc...
+
+Do NOT include explanations.  
+Do NOT include commentary.  
+Output only the YAML & separate files for the custom SQL test.

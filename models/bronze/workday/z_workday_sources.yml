@@ -1,0 +1,12 @@
+# ************************** SqlDBM: Snowflake *************************
+# ************* Generated from DDL: Workday Staging Sources ************
+
+version: 2
+sources:
+  - name: STAGING
+    database: WORKDAY
+    schema: STAGING
+    description: Workday staging layer containing raw employee data ingested from Workday HR system
+    tables:
+      - name: STG_WORKDAY_EMPLOYEE
+        description: Raw staging table for Workday employee data. Contains employee demographics, organizational hierarchy, reporting relationships, location details, and system access profiles ingested from Workday.
