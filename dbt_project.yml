@@ -18,9 +18,28 @@ clean-targets:
 
 models:
   rs_medallion:
+    audit:
+      +materialized: table
     bronze:
-      +materialized: view
+      +materialized: incremental
+      es_eqai:
+        +schema: ODS
+        +tags: ["ods", "es_eqai"]
+      workday:
+        +schema: ODS
+        +tags: ["ods", "workday"]
     silver:
       +materialized: table
+      cdm:
+        workforce:
+          +schema: CDM
+          +tags: ["cdm", "workforce"]
+      core:
+        confirmed_dimensions:
+          +schema: CORE
+          +tags: ["core", "confirmed_dimensions"]
+        workforce:
+          +schema: CORE
+          +tags: ["core", "workforce"]
     gold:
       +materialized: table
