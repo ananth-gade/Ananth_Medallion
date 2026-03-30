@@ -16,12 +16,6 @@
 {% macro capture_run_results() %}
     {% if execute %}
         
-        {# ==================== Skip if audit is disabled via vars ==================== #}
-        {% if var('skip_audit', false) %}
-            {{ log("Skipping capture_run_results (skip_audit=true)", info=true) }}
-            {{ return('') }}
-        {% endif %}
-
         {# ==================== Configuration ==================== #}
         {% set audit_database = 'AUDIT' %}
         {% set audit_schema = 'DATA_TRANSFORMATION' %}

@@ -53,9 +53,6 @@
 
 
 {% macro create_audit_schema() %}
-    {% if var('skip_audit', false) %}
-        {{ return('') }}
-    {% endif %}
     {%- set schema_exists = adapter.check_schema_exists(database=get_audit_database(), schema=get_audit_schema()) -%}
     {% if schema_exists == 0 %}
         {% do create_schema(api.Relation.create(
@@ -67,9 +64,7 @@
 
 
 {% macro create_audit_log_table() -%}
-    {% if var('skip_audit', false) %}
-        {{ return('') }}
-    {% endif %}
+
     {{ return(adapter.dispatch('create_audit_log_table', 'logging')()) }}
 
 {% endmacro %}
@@ -132,17 +127,11 @@
 
 
 {% macro log_run_start_event() %}
-    {% if var('skip_audit', false) %}
-        {{ return('') }}
-    {% endif %}
     {{ custom_log_audit_event('run started', user=target.user, target_name=target.name, is_full_refresh=flags.FULL_REFRESH) }}
 {% endmacro %}
 
 
 {% macro log_run_end_event() %}
-    {% if var('skip_audit', false) %}
-        {{ return('') }}
-    {% endif %}
     {{ custom_log_audit_event('run completed', user=target.user, target_name=target.name, is_full_refresh=flags.FULL_REFRESH) }}
 {% endmacro %}
 

@@ -16,10 +16,18 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
-# on-run-end:
-#  - "{{ capture_run_results() }}"
+tests:
+  +severity: warn
+
+on-run-start:
+  - "{{ create_audit_log_table() }}"
+
+on-run-end:
+  - "{{ capture_run_results() }}"
 
 models:
+    logging:
+        +enabled: false
     rs_medallion:
         audit:
             database: AUDIT
