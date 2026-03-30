@@ -12,7 +12,7 @@
         tags=["ods","es_eqai","data-observe"],
         pre_hook = ["{{ purge_staging_duplicates_by_hash('EQAI', 'STAGING', 'STG_ES_EQAI_USERS', ['STG_INSERT_TIMESTAMP', 'EXEC_BATCH_ID', 'SOURCE_SYSTEM', 'STG_ES_EQAI_USERS_PK']) }}"],
         post_hook = ["{{ mark_deleted_records('EQAI','ODS','ODS_ES_EQAI_USERS','EQAI','STAGING','STG_ES_EQAI_USERS','USER_ID') }}"]   
-    )
+   )
 }}
 
 with 

@@ -16,30 +16,36 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
+# on-run-end:
+#  - "{{ capture_run_results() }}"
+
 models:
-  rs_medallion:
-    audit:
-      +materialized: table
-    bronze:
-      +materialized: incremental
-      es_eqai:
-        +schema: ODS
-        +tags: ["ods", "es_eqai"]
-      workday:
-        +schema: ODS
-        +tags: ["ods", "workday"]
-    silver:
-      +materialized: table
-      cdm:
-        workforce:
-          +schema: CDM
-          +tags: ["cdm", "workforce"]
-      core:
-        confirmed_dimensions:
-          +schema: CORE
-          +tags: ["core", "confirmed_dimensions"]
-        workforce:
-          +schema: CORE
-          +tags: ["core", "workforce"]
-    gold:
-      +materialized: table
+    rs_medallion:
+        audit:
+            database: AUDIT
+            schema: DBT_TRADATA_TRANSFORMATION
+            materialized: incremental
+        bronze:
+            materialized: incremental
+            es_eqai:
+                database: EQAI
+                schema: ODS
+            workday:
+                database: WORKDAY
+                schema: ODS
+        silver:
+            materialized: table
+            cdm:
+                database: CDM
+                schema: WORKFORCE
+                tags: ["cdm", "workforce"]
+            core:
+                database: CORE
+                shared_dims:
+                    database: CORE
+                    schema: SHARED_DIMS
+                    tags: ["core", "shared_dims"]
+                workforce:
+                    database: CORE
+                    schema: WORKFORCE
+                    tags: ["core", "workforce"]
