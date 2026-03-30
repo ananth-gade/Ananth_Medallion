@@ -9,7 +9,7 @@
 {{
     config(
         materialized='table',
-        tags=["workday", "workforce", "core-facts", "employee_lifecycle"]
+        tags=["gold","workday", "workforce", "core-facts", "data-observe"]
     )
 }}
 -- TEMP COMMENT FOR OBSEVEABILITY POLICIES

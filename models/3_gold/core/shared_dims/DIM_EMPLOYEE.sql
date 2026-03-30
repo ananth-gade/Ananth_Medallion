@@ -14,7 +14,7 @@
     post_hook=[
         "update {{ this }} as tgt\nset\n    IS_DELETED = TRUE,\n    UPD_BATCH_ID = TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'))\nwhere tgt.IS_DELETED = FALSE\n  and exists (\n    select 1\n    from {{ ref('EMPLOYEE') }} src\n    where src.EMPLOYEE_EIN = tgt.EMPLOYEE_EIN\n      and src.IS_DELETED = TRUE\n  )"
     ],
-        tags=["workday","workforce","core-dims","scd_type_2"]
+        tags=["gold","workday","workforce","core-dims","data-observe"]
         )
 }}
 

@@ -9,7 +9,7 @@
         unique_key='CDM_EMPLOYEE_PK',
         merge_no_update_columns = ['CDM_INS_BATCH_ID', 'CDM_INSERT_TIMESTAMP'],
         merge_condition="DBT_INTERNAL_SOURCE.HASH_CHANGE != DBT_INTERNAL_DEST.HASH_CHANGE",
-        tags=["cdm","workday","workforce","data-observe"]
+        tags=["silver","cdm","workday","workforce","data-observe"]
     )
 }}
 

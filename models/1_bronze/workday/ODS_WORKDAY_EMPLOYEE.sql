@@ -11,7 +11,7 @@
         unique_key='ODS_WORKDAY_EMPLOYEE_PK',
         merge_no_update_columns = ['ODS_INS_BATCH_ID', 'ODS_INSERT_TIMESTAMP'],
         merge_condition="DBT_INTERNAL_SOURCE.HASH_CHANGE != DBT_INTERNAL_DEST.HASH_CHANGE",
-        tags=["ods","workday","data-observe"],
+        tags=["bronze","ods","workday","data-observe"],
         pre_hook = ["{{ purge_staging_duplicates_by_hash('WORKDAY', 'STAGING', 'STG_WORKDAY_EMPLOYEE', ['STG_INSERT_TIMESTAMP', 'EXEC_BATCH_ID', 'SOURCE_SYSTEM', 'STG_WORKDAY_EMPLOYEE_PK']) }}"],
         post_hook = ["{{ mark_deleted_records('WORKDAY','ODS','ODS_WORKDAY_EMPLOYEE','WORKDAY','STAGING','STG_WORKDAY_EMPLOYEE','EMPLOYEE_ID') }}"]   
         )
