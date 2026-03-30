@@ -140,7 +140,7 @@ models:
           measure: true
         tests:
           - dbt_utils.expression_is_true:
-              expression: "TENURE_DAYS >= 0"
+              expression: ">= 0"
 
       - name: TENURE_MONTHS
         data_type: number(10,1)
