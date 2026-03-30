@@ -47,6 +47,8 @@ models:
                 database: CDM
                 schema: WORKFORCE
                 tags: ["cdm", "workforce"]
+        gold:
+            materialized: table
             core:
                 database: CORE
                 shared_dims:
