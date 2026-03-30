@@ -3,6 +3,6 @@
 
 select *
 from {{ ref('FACT_EMPLOYEE_LIFECYCLE') }}
-where CDM_BATCH_ID is null
-   or CDM_INSERT_TIMESTAMP is null
+where LOAD_BATCH_ID is null
+   or LOAD_TIMESTAMP is null
    or SOURCE_SYSTEM is null
