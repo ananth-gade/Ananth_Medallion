@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RS Medallion — Developer Guide</title>
+    <style>
+        /* ===== Reset & Base ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0d1117; --surface: #161b22; --surface2: #1c2129;
+            --border: #30363d; --text: #e6edf3; --text-muted: #8b949e;
+            --accent: #58a6ff; --accent-dim: #1f6feb; --green: #3fb950;
+            --orange: #d29922; --red: #f85149; --purple: #bc8cff;
+            --gold: #f0c75e; --silver: #8b949e; --bronze: #da8a67;
+            --font: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            --radius: 8px;
+        }
+        html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+        body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.7; }
+        a { color: var(--accent); text-decoration: none; transition: color .2s; }
+        a:hover { color: #79c0ff; text-decoration: underline; }
+        code, pre { font-family: var(--mono); font-size: .88em; }
+        code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: var(--accent); }
+        pre { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; overflow-x: auto; line-height: 1.55; }
+        pre code { background: none; padding: 0; color: var(--text); font-size: .85em; }
+
+        /* ===== Layout ===== */
+        .page { display: flex; min-height: 100vh; }
+        .sidebar {
+            position: fixed; top: 0; left: 0; width: 280px; height: 100vh;
+            background: var(--surface); border-right: 1px solid var(--border);
+            overflow-y: auto; padding: 20px 0; z-index: 100;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .main { margin-left: 280px; flex: 1; max-width: 960px; padding: 40px 48px 80px; }
+
+        /* Sidebar nav */
+        .sidebar .logo { padding: 0 20px 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+        .sidebar .logo h2 { font-size: 1.15em; color: var(--gold); letter-spacing: .5px; }
+        .sidebar .logo p { font-size: .75em; color: var(--text-muted); margin-top: 2px; }
+        .nav-group { padding: 4px 0; }
+        .nav-group-title {
+            display: block; padding: 6px 20px; font-size: .7em; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted);
+        }
+        .nav-link {
+            display: block; padding: 5px 20px 5px 28px; font-size: .85em;
+            color: var(--text-muted); transition: all .15s; border-left: 2px solid transparent;
+        }
+        .nav-link:hover { color: var(--text); background: rgba(88,166,255,.06); text-decoration: none; }
+        .nav-link.active { color: var(--accent); border-left-color: var(--accent); background: rgba(88,166,255,.08); }
+        .nav-link .badge {
+            display: inline-block; font-size: .65em; padding: 1px 6px; border-radius: 10px;
+            margin-left: 6px; vertical-align: middle;
+        }
+        .badge-bronze { background: rgba(218,138,103,.18); color: var(--bronze); }
+        .badge-silver { background: rgba(139,148,158,.18); color: var(--silver); }
+        .badge-gold { background: rgba(240,199,94,.18); color: var(--gold); }
+        .badge-audit { background: rgba(188,140,255,.18); color: var(--purple); }
+        .badge-macro { background: rgba(63,185,80,.18); color: var(--green); }
+
+        /* Content */
+        h1 { font-size: 2em; font-weight: 800; margin-bottom: 8px; color: var(--text); }
+        h1 .version { font-size: .4em; color: var(--text-muted); font-weight: 400; vertical-align: middle; }
+        h2 { font-size: 1.55em; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 1.2em; font-weight: 600; margin: 32px 0 12px; color: var(--accent); }
+        h4 { font-size: 1em; font-weight: 600; margin: 20px 0 8px; color: var(--text); }
+        p { margin-bottom: 12px; }
+        ul, ol { margin: 8px 0 16px 24px; }
+        li { margin-bottom: 4px; }
+        hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+        /* Cards */
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 20px 24px; margin: 16px 0;
+        }
+        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .card-header .icon { font-size: 1.3em; }
+        .card-header h4 { margin: 0; }
+
+        /* Diagrams / Flow */
+        .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+        .flow-node {
+            padding: 10px 18px; border-radius: var(--radius); font-weight: 600; font-size: .85em;
+            border: 1px solid; text-align: center; min-width: 100px;
+        }
+        .flow-arrow { color: var(--text-muted); font-size: 1.3em; }
+        .node-source { background: rgba(139,148,158,.1); border-color: var(--silver); color: var(--silver); }
+        .node-bronze { background: rgba(218,138,103,.1); border-color: var(--bronze); color: var(--bronze); }
+        .node-silver { background: rgba(139,148,158,.15); border-color: #adbac7; color: #adbac7; }
+        .node-gold { background: rgba(240,199,94,.1); border-color: var(--gold); color: var(--gold); }
+        .node-audit { background: rgba(188,140,255,.1); border-color: var(--purple); color: var(--purple); }
+
+        /* Tables */
+        .tbl { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: .88em; }
+        .tbl th { background: var(--surface2); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 2px solid var(--border); }
+        .tbl td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .tbl tr:hover td { background: rgba(88,166,255,.04); }
+        .tbl .mono { font-family: var(--mono); font-size: .9em; }
+
+        /* Callouts */
+        .callout {
+            padding: 14px 18px; border-radius: var(--radius); margin: 16px 0;
+            border-left: 4px solid; font-size: .92em;
+        }
+        .callout-info { background: rgba(88,166,255,.08); border-color: var(--accent); }
+        .callout-warn { background: rgba(210,153,34,.08); border-color: var(--orange); }
+        .callout-success { background: rgba(63,185,80,.08); border-color: var(--green); }
+        .callout-tip { background: rgba(188,140,255,.08); border-color: var(--purple); }
+        .callout strong { display: block; margin-bottom: 4px; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-top: 16px; }
+        .tab-btn {
+            padding: 8px 18px; font-size: .85em; cursor: pointer; border: none; background: none;
+            color: var(--text-muted); font-weight: 500; border-bottom: 2px solid transparent; transition: all .2s;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-content { display: none; padding: 16px 0; }
+        .tab-content.active { display: block; }
+
+        /* Layer badges inline */
+        .layer-tag {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: .72em; font-weight: 600; letter-spacing: .5px; vertical-align: middle;
+        }
+        .tag-bronze { background: rgba(218,138,103,.18); color: var(--bronze); }
+        .tag-silver { background: rgba(139,148,158,.22); color: #adbac7; }
+        .tag-gold { background: rgba(240,199,94,.18); color: var(--gold); }
+        .tag-audit { background: rgba(188,140,255,.18); color: var(--purple); }
+
+        /* File tree */
+        .file-tree { font-family: var(--mono); font-size: .82em; line-height: 1.9; }
+        .file-tree .dir { color: var(--accent); }
+        .file-tree .file { color: var(--text-muted); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 24px; }
+        }
+
+        /* Architecture diagram */
+        .arch-diagram {
+            display: grid; grid-template-columns: 1fr; gap: 12px; margin: 24px 0;
+        }
+        .arch-layer {
+            border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 16px 20px; position: relative; overflow: hidden;
+        }
+        .arch-layer::before {
+            content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
+        }
+        .arch-layer.l-source::before { background: var(--silver); }
+        .arch-layer.l-bronze::before { background: var(--bronze); }
+        .arch-layer.l-silver::before { background: #adbac7; }
+        .arch-layer.l-gold::before { background: var(--gold); }
+        .arch-layer.l-audit::before { background: var(--purple); }
+        .arch-layer h4 { margin: 0 0 6px; }
+        .arch-layer .meta { font-size: .8em; color: var(--text-muted); }
+
+        .hero-sub { color: var(--text-muted); font-size: 1.05em; margin-bottom: 32px; }
+        .highlight { color: var(--gold); }
+
+        /* Steps */
+        .step { display: flex; gap: 16px; margin: 12px 0; }
+        .step-num {
+            flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+            background: var(--accent-dim); color: #fff; display: flex;
+            align-items: center; justify-content: center; font-weight: 700; font-size: .85em;
+        }
+        .step-body { flex: 1; padding-top: 4px; }
+
+        /* Copy button */
+        .code-block { position: relative; }
+        .copy-btn {
+            position: absolute; top: 8px; right: 8px; background: var(--surface2);
+            border: 1px solid var(--border); color: var(--text-muted); padding: 4px 10px;
+            border-radius: 4px; font-size: .72em; cursor: pointer; transition: all .2s;
+        }
+        .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+
+        footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: .82em; text-align: center; }
+    </style>
+</head>
+<body>
+
+<!-- ============================== SIDEBAR ============================== -->
+<div class="page">
+<nav class="sidebar" id="sidebar">
+    <div class="logo">
+        <h2>🏗️ RS Medallion</h2>
+        <p>dbt Developer Guide · v1.0</p>
+    </div>
+
+    <div class="nav-group">
+        <span class="nav-group-title">Getting Started</span>
+        <a href="#overview" class="nav-link">Overview</a>
+        <a href="#architecture" class="nav-link">Architecture</a>
+        <a href="#project-structure" class="nav-link">Project Structure</a>
+        <a href="#data-flow" class="nav-link">Data Flow Pipeline</a>
+    </div>
+    <div class="nav-group">
+        <span class="nav-group-title">Medallion Layers</span>
+        <a href="#bronze" class="nav-link">Bronze (ODS) <span class="badge badge-bronze">1_bronze</span></a>
+        <a href="#silver" class="nav-link">Silver (CDM) <span class="badge badge-silver">2_silver</span></a>
+        <a href="#gold" class="nav-link">Gold (Core) <span class="badge badge-gold">3_gold</span></a>
+        <a href="#audit-layer" class="nav-link">Audit <span class="badge badge-audit">0_audit</span></a>
+    </div>
+    <div class="nav-group">
+        <span class="nav-group-title">Core Concepts</span>
+        <a href="#scd" class="nav-link">SCD Type 1 &amp; Type 2</a>
+        <a href="#materializations" class="nav-link">Materializations</a>
+        <a href="#incremental" class="nav-link">Incremental Strategy</a>
+        <a href="#hash-change" class="nav-link">Hash-Based CDC</a>
+    </div>
+    <div class="nav-group">
+        <span class="nav-group-title">Macros &amp; Engines</span>
+        <a href="#macro-overview" class="nav-link">Macro Overview <span class="badge badge-macro">macros</span></a>
+        <a href="#scd-engine" class="nav-link">SCD Merge Engine</a>
+        <a href="#helper-macros" class="nav-link">Helper Macros</a>
+        <a href="#purge-macros" class="nav-link">Purge &amp; Cleanup</a>
+        <a href="#audit-macros" class="nav-link">Audit &amp; Logging</a>
+    </div>
+    <div class="nav-group">
+        <span class="nav-group-title">Testing &amp; Quality</span>
+        <a href="#testing" class="nav-link">Testing Framework</a>
+        <a href="#generic-tests" class="nav-link">Generic Tests</a>
+        <a href="#singular-tests" class="nav-link">Singular Tests</a>
+    </div>
+    <div class="nav-group">
+        <span class="nav-group-title">Operations</span>
+        <a href="#running" class="nav-link">Running the Project</a>
+        <a href="#conventions" class="nav-link">Naming Conventions</a>
+        <a href="#adding-model" class="nav-link">Adding a New Model</a>
+    </div>
+</nav>
+
+<!-- ============================== MAIN CONTENT ============================== -->
+<main class="main">
+
+<!-- ───── OVERVIEW ───── -->
+<section id="overview">
+    <h1>RS Medallion <span class="version">v1.0 · dbt 1.9 · Snowflake</span></h1>
+    <p class="hero-sub">
+        A production-grade <span class="highlight">Medallion Architecture</span> built with dbt Core on Snowflake —
+        featuring custom SCD Type 2 engines, hash-based change detection, automated audit capture, and a comprehensive
+        test framework spanning Bronze → Silver → Gold layers.
+    </p>
+
+    <div class="card">
+        <div class="card-header"><span class="icon">📦</span><h4>Tech Stack</h4></div>
+        <table class="tbl">
+            <tr><td class="mono">dbt-core</td><td>1.9.4</td><td>Transformation framework</td></tr>
+            <tr><td class="mono">dbt-snowflake</td><td>1.9.2</td><td>Snowflake adapter</td></tr>
+            <tr><td class="mono">dbt_utils</td><td>1.3.3</td><td>Utility macros</td></tr>
+            <tr><td class="mono">dbt_external_tables</td><td>0.12.0</td><td>External table support</td></tr>
+            <tr><td class="mono">logging</td><td>0.8.0</td><td>Audit logging base package</td></tr>
+        </table>
+    </div>
+</section>
+
+<!-- ───── ARCHITECTURE ───── -->
+<section id="architecture">
+    <h2>🏛️ Architecture Overview</h2>
+    <p>The RS Medallion project implements a four-layer data architecture with a cross-cutting audit layer.
+       Each layer has a specific purpose, materialization strategy, and dedicated Snowflake database.</p>
+
+    <div class="arch-diagram">
+        <div class="arch-layer l-source">
+            <h4>📥 Source (Staging)</h4>
+            <div class="meta">
+                Databases: <code>WORKDAY.STAGING</code> · <code>EQAI.STAGING</code><br>
+                External tables loaded via Snowpipe / external ingestion. Raw, unprocessed data.
+            </div>
+        </div>
+        <div class="arch-layer l-bronze">
+            <h4>🥉 Bronze — Operational Data Store (ODS)</h4>
+            <div class="meta">
+                Databases: <code>WORKDAY.ODS</code> · <code>EQAI.ODS</code><br>
+                Materialization: <strong>Incremental</strong> with MERGE · Deduplication · Hash-based CDC · Soft deletes
+            </div>
+        </div>
+        <div class="arch-layer l-silver">
+            <h4>🥈 Silver — Common Data Model (CDM)</h4>
+            <div class="meta">
+                Database: <code>CDM.WORKFORCE</code><br>
+                Materialization: <strong>Incremental</strong> · Multi-source enrichment · Business-friendly naming · SCD Type 1
+            </div>
+        </div>
+        <div class="arch-layer l-gold">
+            <h4>🥇 Gold — Core Presentation</h4>
+            <div class="meta">
+                Database: <code>CORE.SHARED_DIMS</code> · <code>CORE.WORKFORCE</code><br>
+                Materialization: <strong>SCD Incremental (Type 2)</strong> for Dims · <strong>Table</strong> for Facts
+            </div>
+        </div>
+        <div class="arch-layer l-audit">
+            <h4>🔍 Audit — Cross-Cutting Observability</h4>
+            <div class="meta">
+                Database: <code>AUDIT.DATA_TRANSFORMATION</code><br>
+                Run results · DML counts · Query IDs · Audit logging · 60-day retention
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ───── PROJECT STRUCTURE ───── -->
+<section id="project-structure">
+    <h2>📁 Project Structure</h2>
+    <div class="code-block">
+<pre><code class="file-tree"><span class="dir">RS_Medallion/</span>
+├── <span class="file">dbt_project.yml</span>          ← Project config, layer database routing
+├── <span class="file">packages.yml</span>             ← dbt package dependencies
+│
+├── <span class="dir">models/</span>
+│   ├── <span class="dir">0_audit/</span>              ← Audit layer: run results schema
+│   │   ├── <span class="file">DBT_RUN_RESULTS.sql</span>
+│   │   └── <span class="file">audit_schema.yml</span>
+│   │
+│   ├── <span class="dir">1_bronze/</span>             ← ODS layer: source-aligned incremental models
+│   │   ├── <span class="dir">es_eqai/</span>          ← ES EQAI Users source
+│   │   │   ├── <span class="file">ODS_ES_EQAI_USERS.sql</span>
+│   │   │   ├── <span class="file">ODS_ES_EQAI_USERS.yml</span>
+│   │   │   └── <span class="file">z_es_equai_sources.yml</span>
+│   │   └── <span class="dir">workday/</span>          ← Workday HRIS source
+│   │       ├── <span class="file">ODS_WORKDAY_EMPLOYEE.sql</span>
+│   │       ├── <span class="file">ODS_WORKDAY_EMPLOYEE.yml</span>
+│   │       └── <span class="file">z_workday_sources.yml</span>
+│   │
+│   ├── <span class="dir">2_silver/</span>             ← CDM layer: business-modeled entities
+│   │   └── <span class="dir">cdm/workforce/</span>
+│   │       ├── <span class="file">EMPLOYEE.sql</span>
+│   │       └── <span class="file">EMPLOYEE.yml</span>
+│   │
+│   └── <span class="dir">3_gold/</span>               ← Core layer: presentation-ready dims &amp; facts
+│       └── <span class="dir">core/</span>
+│           ├── <span class="dir">shared_dims/</span>  ← SCD Type 2 dimensions
+│           │   ├── <span class="file">DIM_EMPLOYEE.sql</span>
+│           │   └── <span class="file">DIM_EMPLOYEE.yml</span>
+│           └── <span class="dir">workforce/</span>    ← Transactional facts
+│               ├── <span class="file">FACT_EMPLOYEE_LIFECYCLE.sql</span>
+│               └── <span class="file">FACT_EMPLOYEE_LIFECYCLE.yml</span>
+│
+├── <span class="dir">macros/</span>
+│   ├── <span class="dir">audit/</span>                ← Audit logging, run result capture, schema routing
+│   ├── <span class="dir">helpers/</span>              ← Hash generation, surrogate keys, trimming
+│   ├── <span class="dir">purge/</span>               ← Staging dedup, soft delete marking
+│   ├── <span class="dir">scd_engines/</span>          ← Custom SCD Type 2 materialization engine
+│   └── <span class="dir">utils/</span>               ← Database/schema introspection
+│
+└── <span class="dir">tests/</span>
+    ├── <span class="dir">automation/</span>           ← LLM-based test generation prompt &amp; scripts
+    ├── <span class="dir">generic/</span>              ← 17+ reusable parametric test macros
+    └── <span class="dir">singular/</span>             ← Model-specific test files per layer</code></pre>
+    </div>
+</section>
+
+<!-- ───── DATA FLOW ───── -->
+<section id="data-flow">
+    <h2>🔄 Data Flow Pipeline</h2>
+    <p>Each <code>dbt build</code> invocation walks through the following pipeline, with tests running after each model:</p>
+
+    <div class="flow">
+        <div class="flow-node node-source">STG Tables<br><small>Snowpipe</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node node-bronze">ODS Bronze<br><small>Incremental + MERGE</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node node-silver">CDM Silver<br><small>Incremental + Enrich</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node node-gold">Core Gold<br><small>SCD2 Dim + Fact</small></div>
+    </div>
+
+    <div class="callout callout-info">
+        <strong>💡 Build Command</strong>
+        Use <code>dbt build --select +FACT_EMPLOYEE_LIFECYCLE</code> to build all upstream models and run all associated tests in dependency order.
+    </div>
+
+    <h3>Pipeline Steps</h3>
+    <div class="step"><div class="step-num">1</div><div class="step-body"><strong>on-run-start Hook:</strong> Creates the audit log table (<code>AUDIT.DATA_TRANSFORMATION.dbt_audit_log</code>) if it doesn't exist.</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body"><strong>Bronze Layer:</strong> <code>ODS_WORKDAY_EMPLOYEE</code> and <code>ODS_ES_EQAI_USERS</code> load incrementally from staging with pre-hook duplicate purging and post-hook soft-delete marking.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body"><strong>Bronze Tests:</strong> 17 tests per ODS model — PK uniqueness, not-null, email format, row count reconciliation, PK reconciliation.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body"><strong>Silver Layer:</strong> <code>EMPLOYEE</code> CDM model enriches Workday data with ES EQAI user IDs via LEFT JOIN, applies business naming and type casting.</div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-body"><strong>Silver Tests:</strong> 13 tests — referential integrity to ODS, PK/row count reconciliation, business rule validation.</div></div>
+    <div class="step"><div class="step-num">6</div><div class="step-body"><strong>Gold Dimension:</strong> <code>DIM_EMPLOYEE</code> uses the custom <code>scd_incremental</code> materialization with <code>scd+merge</code> strategy to maintain SCD Type 2 history.</div></div>
+    <div class="step"><div class="step-num">7</div><div class="step-body"><strong>Gold Fact:</strong> <code>FACT_EMPLOYEE_LIFECYCLE</code> is a full-refresh table that derives lifecycle events (HIRE, TERM, LOA, RETURN, ROLE_CHANGE, ORG_TRANSFER, PROFILE_UPDATE) from SCD2 version diffs.</div></div>
+    <div class="step"><div class="step-num">8</div><div class="step-body"><strong>on-run-end Hook:</strong> Captures all run results to <code>AUDIT.DATA_TRANSFORMATION.dbt_run_results</code> with DML counts via <code>RESULT_SCAN</code>.</div></div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ LAYER DEEP DIVES ═══════════════════════ -->
+
+<!-- ───── BRONZE ───── -->
+<section id="bronze">
+    <h2>🥉 Bronze Layer — Operational Data Store (ODS)</h2>
+    <p>The Bronze layer ingests raw staging data into the ODS with minimal transformation. Its primary goals are:</p>
+    <ul>
+        <li><strong>Deduplication</strong> — Removes duplicate records from staging using <code>ROW_NUMBER()</code> windowing</li>
+        <li><strong>Type Casting</strong> — Standardizes column data types with explicit <code>CAST</code></li>
+        <li><strong>Audit Metadata</strong> — Adds batch IDs, timestamps, operation types, and data quality placeholders</li>
+        <li><strong>Hash-Based CDC</strong> — Generates <code>HASH_CHANGE</code> and <code>HASH_FULL</code> for downstream change detection</li>
+        <li><strong>Soft Deletes</strong> — Post-hook marks records no longer in staging as deleted</li>
+    </ul>
+
+    <h3>Model Configuration</h3>
+<pre><code>{{
+    config(
+        materialized='incremental',
+        unique_key='ODS_WORKDAY_EMPLOYEE_PK',
+        merge_no_update_columns = ['ODS_INS_BATCH_ID', 'ODS_INSERT_TIMESTAMP'],
+        merge_condition="DBT_INTERNAL_SOURCE.HASH_CHANGE != DBT_INTERNAL_DEST.HASH_CHANGE",
+        tags=["bronze","ods","workday","data-observe"],
+        pre_hook  = ["{{ purge_staging_duplicates_by_hash(...) }}"],
+        post_hook = ["{{ mark_deleted_records(...) }}"]
+    )
+}}</code></pre>
+
+    <h3>Key Design Patterns</h3>
+    <table class="tbl">
+        <thead><tr><th>Pattern</th><th>Implementation</th></tr></thead>
+        <tbody>
+            <tr><td>Surrogate Key</td><td><code>generate_surrogate_key([trim_string('EMPLOYEE_ID')])</code> → MD5 hash PK</td></tr>
+            <tr><td>Incremental Filter</td><td><code>WHERE STG_INSERT_TIMESTAMP >= get_max_event_time('STG_INSERT_TIMESTAMP')</code></td></tr>
+            <tr><td>Deduplication</td><td><code>ROW_NUMBER() OVER (PARTITION BY pk ORDER BY timestamp DESC) = 1</code></td></tr>
+            <tr><td>Merge Condition</td><td>Only updates when <code>HASH_CHANGE</code> differs (skip no-op merges)</td></tr>
+            <tr><td>Immutable Columns</td><td><code>merge_no_update_columns</code> protects insert batch/timestamp</td></tr>
+            <tr><td>Pre-Hook</td><td><code>purge_staging_duplicates_by_hash</code> removes true duplicates from staging</td></tr>
+            <tr><td>Post-Hook</td><td><code>mark_deleted_records</code> soft-deletes records missing from latest staging batch</td></tr>
+        </tbody>
+    </table>
+
+    <h3>CTE Structure</h3>
+    <div class="callout callout-tip">
+        <strong>🧩 Standard CTE Pattern (all Bronze models)</strong>
+        <code>CTE_source_data</code> → <code>CTE_source_data_deduped</code> → <code>CTE_audits</code> → <code>CTE_transformed</code> → Final SELECT with hash columns
+    </div>
+
+    <h3>Database Routing</h3>
+    <table class="tbl">
+        <thead><tr><th>Source</th><th>Staging Table</th><th>ODS Target</th></tr></thead>
+        <tbody>
+            <tr><td class="mono">Workday</td><td class="mono">WORKDAY.STAGING.STG_WORKDAY_EMPLOYEE</td><td class="mono">WORKDAY.ODS.ODS_WORKDAY_EMPLOYEE</td></tr>
+            <tr><td class="mono">ES EQAI</td><td class="mono">EQAI.STAGING.STG_ES_EQAI_USERS</td><td class="mono">EQAI.ODS.ODS_ES_EQAI_USERS</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ───── SILVER ───── -->
+<section id="silver">
+    <h2>🥈 Silver Layer — Common Data Model (CDM)</h2>
+    <p>The Silver layer transforms ODS data into business-modeled entities with clean naming, cross-source enrichment, and standardized field structures. This is where <strong>SCD Type 1</strong> (overwrite) semantics apply — each record represents the <em>current state</em> of an entity.</p>
+
+    <h3>EMPLOYEE CDM Model</h3>
+    <table class="tbl">
+        <thead><tr><th>Aspect</th><th>Detail</th></tr></thead>
+        <tbody>
+            <tr><td>Source</td><td><code>ref('ODS_WORKDAY_EMPLOYEE')</code> enriched with <code>ref('ODS_ES_EQAI_USERS')</code></td></tr>
+            <tr><td>Target</td><td><code>CDM.WORKFORCE.EMPLOYEE</code></td></tr>
+            <tr><td>Materialization</td><td>Incremental with hash-based merge condition</td></tr>
+            <tr><td>Unique Key</td><td><code>CDM_EMPLOYEE_PK</code> (MD5 hash of EMPLOYEE_ID)</td></tr>
+            <tr><td>SCD Type</td><td><strong>Type 1</strong> — latest value overwrites previous</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Multi-Source Enrichment Pattern</h3>
+    <p>The EMPLOYEE model demonstrates a sophisticated re-enrichment pattern:</p>
+
+<pre><code>-- Regular incremental records from Workday ODS
+CTE_source_data → filters by ODS_UPDATE_TIMESTAMP
+
+-- Reprocess records where ES_USER_ID was previously NULL
+CTE_reprocess_null_es_users → finds employees needing re-enrichment
+
+-- Combine both sets
+CTE_combined_source → UNION ALL of new + reprocess records
+
+-- Enrich with ES EQAI user data
+CTE_source_enriched → LEFT JOIN to ODS_ES_EQAI_USERS on user_code</code></pre>
+
+    <div class="callout callout-success">
+        <strong>✅ Re-Enrichment Logic</strong>
+        On incremental runs, the model re-processes existing CDM records where <code>ES_USER_ID IS NULL</code> and a matching ES EQAI record now exists. This ensures eventually-consistent enrichment even when source systems load asynchronously.
+    </div>
+
+    <h3>Transformations Applied</h3>
+    <ul>
+        <li><strong>Column Renaming:</strong> <code>LEGAL_NAME_FIRST_NAME</code> → <code>FIRST_NAME</code>, <code>EMAIL_ID</code> → <code>EMAIL_ADDRESS</code></li>
+        <li><strong>Derived Fields:</strong> <code>COMPLETE_NAME</code> via <code>CONCAT_WS</code>, <code>IS_UNION_MEMBER</code> from <code>UNION_CODE</code></li>
+        <li><strong>Type Conversions:</strong> Boolean <code>IS_DELETED</code> (Y/N → 1/0)</li>
+        <li><strong>Data Lineage:</strong> <code>SOURCE_TABLES</code> dynamically includes ES EQAI when join matches</li>
+    </ul>
+</section>
+
+<!-- ───── GOLD ───── -->
+<section id="gold">
+    <h2>🥇 Gold Layer — Core Presentation</h2>
+    <p>The Gold layer provides consumption-ready dimensional models. It contains two sub-patterns:</p>
+
+    <h3>DIM_EMPLOYEE — SCD Type 2 Dimension</h3>
+    <p>Uses the custom <code>scd_incremental</code> materialization with <code>scd+merge</code> strategy. This is the heart of the framework's Type 2 SCD implementation.</p>
+
+    <table class="tbl">
+        <thead><tr><th>Aspect</th><th>Detail</th></tr></thead>
+        <tbody>
+            <tr><td>Materialization</td><td><code>scd_incremental</code> (custom Snowflake materialization)</td></tr>
+            <tr><td>Strategy</td><td><code>scd+merge</code></td></tr>
+            <tr><td>Business Key</td><td><code>EMPLOYEE_EIN</code></td></tr>
+            <tr><td>Surrogate Key</td><td><code>EMPLOYEE_SK</code> = MD5(EMPLOYEE_EIN || EFF_DT)</td></tr>
+            <tr><td>Hash Column</td><td><code>DBT_HASH</code> (from CDM <code>HASH_FULL</code>) drives change detection</td></tr>
+            <tr><td>SCD Fields</td><td><code>EFF_DT</code>, <code>DISC_DT</code>, <code>IS_CURRENT</code></td></tr>
+            <tr><td>Batch Tracking</td><td><code>INS_BATCH_ID</code>, <code>UPD_BATCH_ID</code> (YYYYMMDDHHMMSS format)</td></tr>
+        </tbody>
+    </table>
+
+    <h3>SCD Type 2 Merge Logic</h3>
+    <p>The custom merge executes three operations in a single statement:</p>
+
+    <div class="step"><div class="step-num">1</div><div class="step-body">
+        <strong>WHEN MATCHED (Intra-Day Update):</strong> If the source record's batch date matches the target's <code>EFF_DT</code> (same day) AND hashes differ → UPDATE the current record in-place (avoids creating redundant versions for same-day changes).
+    </div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-body">
+        <strong>WHEN NOT MATCHED (New Employee):</strong> If the business key doesn't exist at all → INSERT with <code>EFF_DT = '1900-01-01'</code> (initial load sentinel).
+    </div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-body">
+        <strong>WHEN NOT MATCHED (New Version):</strong> If the hash doesn't match any open record → INSERT new version with current <code>EFF_DT</code>.
+    </div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-body">
+        <strong>Close-Out UPDATE:</strong> Separate UPDATE sets <code>DISC_DT = CURRENT_DATE - 1</code> and <code>IS_CURRENT = FALSE</code> on old records where hash changed and <code>DISC_DT = '9999-12-31'</code>.
+    </div></div>
+
+    <div class="callout callout-warn">
+        <strong>⚠️ Post-Hook: Soft Delete Propagation</strong>
+        A post-hook UPDATE propagates <code>IS_DELETED = TRUE</code> from the CDM source to all matching DIM records, ensuring delete events are tracked in the dimension.
+    </div>
+
+    <h3>FACT_EMPLOYEE_LIFECYCLE — Transactional Fact</h3>
+    <p>A <strong>full-refresh table</strong> that derives lifecycle events by comparing consecutive SCD2 versions using <code>LAG()</code> window functions.</p>
+
+    <table class="tbl">
+        <thead><tr><th>Event Type</th><th>Detection Logic</th></tr></thead>
+        <tbody>
+            <tr><td class="mono">HIRE</td><td>First version (<code>VERSION_NUM = 1</code>)</td></tr>
+            <tr><td class="mono">TERMINATION</td><td>Status changed to TERM/T from non-TERM</td></tr>
+            <tr><td class="mono">LOA</td><td>Status changed to LOA</td></tr>
+            <tr><td class="mono">RETURN</td><td>Previous status was LOA, now active</td></tr>
+            <tr><td class="mono">ORG_TRANSFER</td><td><code>DIV_SK != PREV_DIVISION_NUMBER</code></td></tr>
+            <tr><td class="mono">ROLE_CHANGE</td><td><code>JOB_CD != PREV_JOB_CODE</code></td></tr>
+            <tr><td class="mono">PROFILE_UPDATE</td><td>Catch-all for other changes</td></tr>
+        </tbody>
+    </table>
+
+    <p>Additional computed measures per event:</p>
+    <ul>
+        <li><strong>Tenure:</strong> <code>TENURE_DAYS</code>, <code>TENURE_MONTHS</code>, <code>TENURE_YEARS</code>, <code>TENURE_BAND</code></li>
+        <li><strong>Change Tracking:</strong> <code>IS_PROMOTION</code>, <code>IS_LATERAL</code>, <code>IS_DIVISION_CHANGE</code>, <code>IS_TERMINATION</code></li>
+        <li><strong>Fiscal Calendar:</strong> <code>EVENT_FISCAL_YEAR</code>, <code>EVENT_QUARTER</code>, <code>EVENT_MONTH</code></li>
+    </ul>
+</section>
+
+<!-- ───── AUDIT ───── -->
+<section id="audit-layer">
+    <h2>🔍 Audit Layer — Observability</h2>
+    <p>The audit layer provides complete observability over every dbt run. It consists of two mechanisms:</p>
+
+    <h3>1. dbt Audit Log</h3>
+    <p>Created via the <code>on-run-start</code> hook. Records model start/end events, invocation IDs, and query IDs to <code>AUDIT.DATA_TRANSFORMATION.dbt_audit_log</code>.</p>
+
+    <h3>2. dbt Run Results (<code>capture_run_results</code>)</h3>
+    <p>The <code>on-run-end</code> hook captures comprehensive execution metadata for every node:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td class="mono">model_execution_id</td><td>Unique ID: <code>invocation_id.unique_id</code></td></tr>
+            <tr><td class="mono">query_id</td><td>Snowflake query ID for each execution</td></tr>
+            <tr><td class="mono">rows_inserted/updated/deleted</td><td>Extracted via <code>RESULT_SCAN</code> on the query_id</td></tr>
+            <tr><td class="mono">execution_time</td><td>Duration in seconds</td></tr>
+            <tr><td class="mono">compiled_code</td><td>Full compiled SQL (up to 16MB)</td></tr>
+            <tr><td class="mono">status</td><td>success, error, warn, skipped</td></tr>
+            <tr><td class="mono">materialization</td><td>Configured materialization type</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout callout-info">
+        <strong>📊 Elementary Compatibility</strong>
+        The <code>dbt_run_results</code> schema is aligned with the open-source Elementary data observability package, enabling compatibility with Elementary's monitoring dashboards without additional configuration.
+    </div>
+
+    <h4>Data Retention</h4>
+    <p>Audit records older than <strong>60 days</strong> are automatically purged on each run via:</p>
+<pre><code>DELETE FROM AUDIT.DATA_TRANSFORMATION.dbt_run_results
+WHERE created_at < DATEADD(day, -60, CURRENT_TIMESTAMP());</code></pre>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ CORE CONCEPTS ═══════════════════════ -->
+
+<section id="scd">
+    <h2>🔀 SCD Type 1 vs Type 2</h2>
+    <p>This project implements both SCD patterns at different layers:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Aspect</th><th>Type 1 (Silver CDM)</th><th>Type 2 (Gold Dimension)</th></tr></thead>
+        <tbody>
+            <tr><td>History</td><td>❌ No history — latest value overwrites</td><td>✅ Full history with versioning</td></tr>
+            <tr><td>Model</td><td><code>EMPLOYEE</code></td><td><code>DIM_EMPLOYEE</code></td></tr>
+            <tr><td>Materialization</td><td><code>incremental</code> (standard)</td><td><code>scd_incremental</code> (custom)</td></tr>
+            <tr><td>Strategy</td><td><code>merge</code></td><td><code>scd+merge</code></td></tr>
+            <tr><td>Change Detection</td><td><code>HASH_CHANGE</code> in merge condition</td><td><code>DBT_HASH</code> comparison in SCD merge</td></tr>
+            <tr><td>Temporal Fields</td><td>None</td><td><code>EFF_DT</code>, <code>DISC_DT</code>, <code>IS_CURRENT</code></td></tr>
+            <tr><td>Key Structure</td><td>Natural key PK (<code>CDM_EMPLOYEE_PK</code>)</td><td>Surrogate SK (<code>EMPLOYEE_SK</code> = hash of EIN + EFF_DT)</td></tr>
+            <tr><td>Use Case</td><td>Current-state reporting, operational queries</td><td>Historical analysis, as-of-date reporting</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="materializations">
+    <h2>⚙️ Materializations</h2>
+    <p>The project uses four materialization types:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Type</th><th>Layer</th><th>Model(s)</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td class="mono">incremental</td><td><span class="layer-tag tag-bronze">Bronze</span> <span class="layer-tag tag-silver">Silver</span></td><td>ODS_*, EMPLOYEE</td><td>Standard dbt merge with hash-based change detection</td></tr>
+            <tr><td class="mono">scd_incremental</td><td><span class="layer-tag tag-gold">Gold</span></td><td>DIM_EMPLOYEE</td><td>Custom materialization for SCD Type 2 with 3-way merge</td></tr>
+            <tr><td class="mono">table</td><td><span class="layer-tag tag-gold">Gold</span></td><td>FACT_EMPLOYEE_LIFECYCLE</td><td>Full refresh on every run</td></tr>
+            <tr><td class="mono">incremental</td><td><span class="layer-tag tag-audit">Audit</span></td><td>DBT_RUN_RESULTS</td><td>Append-only audit records</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Custom <code>scd_incremental</code> Materialization</h3>
+    <p>Defined in <code>macros/scd_engines/snowflake_merge.sql</code>, this custom materialization:</p>
+    <ol>
+        <li>Validates the incremental strategy (<code>merge</code>, <code>delete+insert</code>, or <code>scd+merge</code>)</li>
+        <li>Creates a temp relation with the new/changed source data</li>
+        <li>Expands target column types if needed</li>
+        <li>Dispatches to <code>get_scd_merge_sql</code> for the three-phase merge + close-out</li>
+        <li>Runs post-hooks (soft-delete propagation) within the transaction</li>
+    </ol>
+</section>
+
+<section id="incremental">
+    <h2>📈 Incremental Strategy</h2>
+    <p>All incremental models follow a consistent watermark pattern:</p>
+
+<pre><code>{% if is_incremental() %}
+    WHERE timestamp_col >= '{{ get_max_event_time("timestamp_col") }}'
+{% endif %}</code></pre>
+
+    <h3><code>get_max_event_time</code> Macro</h3>
+    <p>This macro queries the target table for the maximum value of a timestamp column, then subtracts <strong>3 minutes</strong> as a safety buffer to handle late-arriving records:</p>
+
+<pre><code>SELECT max({{ date_field }}) - interval '3 minutes' FROM {{ this }};</code></pre>
+
+    <div class="callout callout-warn">
+        <strong>⚠️ Fallback</strong>
+        If the result is <code>NULL</code> (empty table), the macro returns <code>'19000101000000000'</code> to process all records.
+    </div>
+
+    <h3>Custom <code>is_incremental()</code> Override</h3>
+    <p>The project overrides dbt's built-in <code>is_incremental()</code> to add support for a <code>load_historical</code> config flag that forces incremental mode even when the target relation doesn't exist yet — useful for backfill scenarios.</p>
+</section>
+
+<section id="hash-change">
+    <h2>#️⃣ Hash-Based Change Detection</h2>
+    <p>Two hash columns are generated for every Bronze and Silver model:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Hash</th><th>Purpose</th><th>Excludes</th></tr></thead>
+        <tbody>
+            <tr><td class="mono">HASH_CHANGE</td><td>Detects business data changes (used in merge conditions)</td><td>Natural keys, audit columns, <code>*_PK</code> columns</td></tr>
+            <tr><td class="mono">HASH_FULL</td><td>Full record fingerprint (used as <code>DBT_HASH</code> in SCD2)</td><td>Only audit columns</td></tr>
+        </tbody>
+    </table>
+
+    <h3>How It Works</h3>
+    <ol>
+        <li>Reads column metadata from the model's YAML file</li>
+        <li>Identifies columns tagged with <code>meta.natural_key: true</code> or <code>meta.audit_column: true</code></li>
+        <li>Auto-excludes columns ending in <code>_PK</code></li>
+        <li>Concatenates remaining columns: <code>coalesce(cast(col as varchar), '') || '|' || ...</code></li>
+        <li>Returns <code>MD5(concatenated_string)</code> as a 32-character hash</li>
+    </ol>
+
+    <div class="callout callout-tip">
+        <strong>🏷️ YAML Metadata Tags</strong>
+        To exclude a column from <code>HASH_CHANGE</code>, add <code>meta: { natural_key: true }</code> or <code>meta: { audit_column: true }</code> in your model's YAML file.
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ MACROS ═══════════════════════ -->
+
+<section id="macro-overview">
+    <h2>🧩 Macro Overview</h2>
+    <p>The project contains 16+ custom macros organized into four categories:</p>
+
+    <div class="arch-diagram">
+        <div class="arch-layer l-audit">
+            <h4>macros/audit/ — Audit &amp; Logging</h4>
+            <div class="meta">
+                <code>audit.sql</code> · <code>capture_run_results.sql</code> · <code>generate_schema_name.sql</code> · <code>get_audit_location.sql</code>
+            </div>
+        </div>
+        <div class="arch-layer l-silver">
+            <h4>macros/helpers/ — Data Transformation Helpers</h4>
+            <div class="meta">
+                <code>generate_hash_change.sql</code> · <code>generate_hash_full.sql</code> · <code>generate_surrogate_key.sql</code> · <code>get_max_event_time.sql</code> · <code>trim_string.sql</code> · <code>get_last_query_id.sql</code>
+            </div>
+        </div>
+        <div class="arch-layer l-bronze">
+            <h4>macros/purge/ — Data Cleanup</h4>
+            <div class="meta">
+                <code>purge_staging_duplicates_by_hash.sql</code> · <code>mark_deleted_records.sql</code>
+            </div>
+        </div>
+        <div class="arch-layer l-gold">
+            <h4>macros/scd_engines/ — SCD Materialization Engine</h4>
+            <div class="meta">
+                <code>snowflake_merge.sql</code> · <code>merge.sql</code> · <code>insert.sql</code> · <code>is_incremental.sql</code>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="scd-engine">
+    <h2>🔧 SCD Merge Engine</h2>
+    <p>The SCD engine is the most complex custom component. It defines a new Snowflake materialization (<code>scd_incremental</code>) and merge strategy.</p>
+
+    <h3>Materialization Flow</h3>
+<pre><code>{% materialization scd_incremental, adapter='snowflake' %}
+  1. Read config: unique_key, timestamp_column, type6_columns
+  2. Check existing_relation
+  3. If new table → CREATE TABLE AS
+  4. If existing → CREATE TEMP TABLE, then dispatch scd+merge
+  5. Run post-hooks within transaction
+  6. COMMIT
+{% endmaterialization %}</code></pre>
+
+    <h3>Merge SQL (3-Phase)</h3>
+    <h4>Phase 1: MERGE Statement</h4>
+    <ul>
+        <li><strong>WHEN MATCHED</strong> (intra-day): UPDATE current record if same-day batch and hash changed</li>
+        <li><strong>WHEN NOT MATCHED</strong> (new key): INSERT with <code>EFF_DT = '1900-01-01'</code></li>
+        <li><strong>WHEN NOT MATCHED</strong> (new version): INSERT new version row</li>
+    </ul>
+
+    <h4>Phase 2: Close-Out UPDATE</h4>
+<pre><code>UPDATE target
+SET DISC_DT = CURRENT_DATE - 1, IS_CURRENT = FALSE
+WHERE unique_key = source.unique_key
+  AND DBT_HASH &lt;&gt; source.DBT_HASH
+  AND DISC_DT = '9999-12-31';</code></pre>
+
+    <h4>Phase 3: Type 6 Hybrid (Optional)</h4>
+    <p>If <code>type6_columns</code> are configured, changed column values from the current record are propagated to <em>all historical records</em> — enabling Type 6 (hybrid) SCD behavior.</p>
+</section>
+
+<section id="helper-macros">
+    <h2>🛠️ Helper Macros</h2>
+
+    <table class="tbl">
+        <thead><tr><th>Macro</th><th>Usage</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr>
+                <td class="mono">generate_surrogate_key</td>
+                <td><code>{{ generate_surrogate_key(['COL_A', 'COL_B']) }}</code></td>
+                <td>Creates MD5 hash from concatenated, null-safe field values with <code>'-'</code> separator</td>
+            </tr>
+            <tr>
+                <td class="mono">generate_hash_change</td>
+                <td><code>{{ generate_hash_change(relation=this) }}</code></td>
+                <td>MD5 hash of non-key, non-audit columns for business change detection</td>
+            </tr>
+            <tr>
+                <td class="mono">generate_hash_full</td>
+                <td><code>{{ generate_hash_full(relation=this) }}</code></td>
+                <td>MD5 hash of all non-audit columns for full record fingerprinting</td>
+            </tr>
+            <tr>
+                <td class="mono">get_max_event_time</td>
+                <td><code>{{ get_max_event_time('TIMESTAMP_COL') }}</code></td>
+                <td>Returns max timestamp - 3 minutes from target for incremental watermark</td>
+            </tr>
+            <tr>
+                <td class="mono">trim_string</td>
+                <td><code>{{ trim_string('FIELD_NAME') }}</code></td>
+                <td>LTRIM + RTRIM + REGEXP_REPLACE for multi-space normalization</td>
+            </tr>
+            <tr>
+                <td class="mono">get_last_query_id</td>
+                <td><code>{{ get_last_query_id() }}</code></td>
+                <td>Queries Snowflake <code>INFORMATION_SCHEMA.QUERY_HISTORY</code> for dbt's last execution query ID</td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="purge-macros">
+    <h2>🧹 Purge &amp; Cleanup Macros</h2>
+
+    <h3><code>purge_staging_duplicates_by_hash</code></h3>
+    <p>Runs as a <strong>pre-hook</strong> on Bronze models. Removes true duplicate rows from staging tables using a hash-based dedup strategy:</p>
+    <ol>
+        <li>Computes an MD5 hash over all non-excluded columns</li>
+        <li>Uses <code>RANK()</code> to identify duplicates (same hash)</li>
+        <li>Deletes rows where <code>rank > 1</code>, keeping only the latest per hash</li>
+    </ol>
+    <p><strong>Excluded columns:</strong> <code>STG_INSERT_TIMESTAMP</code>, <code>EXEC_BATCH_ID</code>, <code>SOURCE_SYSTEM</code>, <code>*_PK</code></p>
+
+    <h3><code>mark_deleted_records</code></h3>
+    <p>Runs as a <strong>post-hook</strong> on Bronze models. Performs soft-delete detection:</p>
+    <ol>
+        <li>Compares ODS records against the latest staging batch</li>
+        <li>Records not found in staging are marked: <code>OPERATION_TYPE = 'DELETE'</code>, <code>SRC_DEL_IND = 'Y'</code></li>
+        <li>Supports both single-column and composite primary keys</li>
+        <li>Intelligently trims string PKs and skips numeric PKs</li>
+        <li>Includes first-run guard — safely skips if ODS table doesn't exist yet</li>
+    </ol>
+</section>
+
+<section id="audit-macros">
+    <h2>📋 Audit &amp; Logging Macros</h2>
+
+    <h3>Lifecycle Hooks</h3>
+    <table class="tbl">
+        <thead><tr><th>Hook</th><th>Macro</th><th>Action</th></tr></thead>
+        <tbody>
+            <tr><td class="mono">on-run-start</td><td><code>create_audit_log_table()</code></td><td>Creates audit log table if not exists, adds missing columns</td></tr>
+            <tr><td class="mono">on-run-end</td><td><code>capture_run_results()</code></td><td>Captures all node results with DML counts to audit table</td></tr>
+            <tr><td class="mono">on-run-end</td><td><code>grant_select_for_data_observability()</code></td><td>Grants SELECT permissions for monitoring tools</td></tr>
+        </tbody>
+    </table>
+
+    <h3><code>capture_run_results</code> Deep Dive</h3>
+    <p>This is the most sophisticated audit macro. For each executed node it:</p>
+    <ol>
+        <li>Extracts timing information (compile start/end, execute start/end)</li>
+        <li>Captures Snowflake <code>query_id</code> from the adapter response</li>
+        <li>Runs <code>RESULT_SCAN('query_id')</code> to extract DML counts (rows inserted/updated/deleted)</li>
+        <li>For table materializations, queries <code>COUNT(*)</code> to get row counts</li>
+        <li>Batches inserts (100 rows per batch) to avoid query size limits</li>
+        <li>Includes SQL-injection-safe escaping for all string fields</li>
+    </ol>
+
+    <h3><code>generate_schema_name</code> Override</h3>
+    <p>Overrides dbt's default schema generation to use <strong>custom schema names as-is</strong> (without the target schema prefix). This enables direct routing to schemas like <code>ODS</code>, <code>WORKFORCE</code>, <code>SHARED_DIMS</code>.</p>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ TESTING ═══════════════════════ -->
+
+<section id="testing">
+    <h2>🧪 Testing Framework</h2>
+    <p>The project features a comprehensive testing strategy with <strong>72+ data tests</strong> across all layers. All tests default to <code>severity: warn</code> (configurable in <code>dbt_project.yml</code>).</p>
+
+    <div class="flow">
+        <div class="flow-node node-bronze">Bronze Tests<br><small>~17 per model</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node node-silver">Silver Tests<br><small>~13 per model</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node node-gold">Gold Tests<br><small>~19 dim + ~23 fact</small></div>
+    </div>
+</section>
+
+<section id="generic-tests">
+    <h2>📐 Generic (Reusable) Tests</h2>
+    <p>Located in <code>tests/generic/</code>, these parametric test macros are used across multiple models:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Test</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td class="mono">check_scd_integrity</td><td>Validates SCD2 tables: no date gaps, IS_CURRENT consistency, EFF_DT &lt; DISC_DT, single active record per key</td></tr>
+            <tr><td class="mono">check_is_current_flg</td><td>Verifies IS_CURRENT = TRUE only when DISC_DT = '9999-12-31'</td></tr>
+            <tr><td class="mono">check_gaps_in_eff_disc_dt</td><td>Detects gaps between consecutive EFF_DT/DISC_DT ranges</td></tr>
+            <tr><td class="mono">check_eff_dt_greater_than_disc_dt</td><td>Ensures effective dates precede discontinuation dates</td></tr>
+            <tr><td class="mono">compare_row_counts</td><td>Compares deduped source row count against target count</td></tr>
+            <tr><td class="mono">compare_pk_stage_ods</td><td>PK reconciliation between staging and ODS layers</td></tr>
+            <tr><td class="mono">check_duplicate_disc_dt_for_unique_key</td><td>Ensures no duplicate open records per key</td></tr>
+            <tr><td class="mono">check_model_freshness</td><td>Validates data freshness based on timestamp columns</td></tr>
+            <tr><td class="mono">boolean_binary</td><td>Validates columns contain only 0/1 or TRUE/FALSE</td></tr>
+            <tr><td class="mono">email_format</td><td>Validates email address format via regex</td></tr>
+            <tr><td class="mono">ein_format</td><td>Validates Employee Identification Number format</td></tr>
+            <tr><td class="mono">phone_format</td><td>Validates phone number format</td></tr>
+            <tr><td class="mono">no_self_supervision</td><td>Ensures employees don't supervise themselves</td></tr>
+            <tr><td class="mono">date_not_future</td><td>Ensures date columns aren't in the future</td></tr>
+            <tr><td class="mono">positive_values</td><td>Validates numeric columns are positive</td></tr>
+            <tr><td class="mono">middle_initial_format</td><td>Validates single-character middle initial</td></tr>
+            <tr><td class="mono">check_job_cd_change</td><td>Validates job code change integrity</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="singular-tests">
+    <h2>🎯 Singular Tests by Layer</h2>
+    <p>Located in <code>tests/singular/</code>, organized by model name. These are pre-written SQL tests specific to each model.</p>
+
+    <h3>Cross-Layer Reconciliation Pattern</h3>
+    <p>Each layer-to-layer transition includes:</p>
+    <ul>
+        <li><strong>Row Count Reconciliation:</strong> <code>test_*_row_count</code> — ensures no data loss between layers</li>
+        <li><strong>PK Reconciliation:</strong> <code>test_*_pk_reconciliation</code> — verifies all PKs carry through</li>
+        <li><strong>Referential Integrity:</strong> <code>test_*_referential_integrity</code> — validates FK relationships</li>
+    </ul>
+
+    <table class="tbl">
+        <thead><tr><th>Test Category</th><th>Bronze</th><th>Silver</th><th>Gold Dim</th><th>Gold Fact</th></tr></thead>
+        <tbody>
+            <tr><td>PK not null / unique</td><td>✅</td><td>✅</td><td>✅ (SK)</td><td>✅</td></tr>
+            <tr><td>Audit columns not null</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Email format</td><td>✅</td><td>✅</td><td>✅</td><td>—</td></tr>
+            <tr><td>Row count reconciliation</td><td>STG→ODS</td><td>ODS→CDM</td><td>CDM→Core</td><td>DIM→Fact</td></tr>
+            <tr><td>PK reconciliation</td><td>STG→ODS</td><td>STG→CDM, ODS→CDM</td><td>CDM→Core</td><td>DIM→Fact</td></tr>
+            <tr><td>No self-supervision</td><td>✅</td><td>✅</td><td>✅</td><td>—</td></tr>
+            <tr><td>SCD integrity</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+            <tr><td>One current per key</td><td>—</td><td>—</td><td>✅</td><td>—</td></tr>
+            <tr><td>Event type validation</td><td>—</td><td>—</td><td>—</td><td>✅</td></tr>
+            <tr><td>Tenure consistency</td><td>—</td><td>—</td><td>—</td><td>✅</td></tr>
+        </tbody>
+    </table>
+
+    <h3>LLM-Assisted Test Generation</h3>
+    <p>The <code>tests/automation/</code> directory contains an LLM prompt template (<code>LLM_prompt.txt</code>) for generating comprehensive test suites for new models. Feed it the model SQL and YAML to produce a complete test YAML block.</p>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ OPERATIONS ═══════════════════════ -->
+
+<section id="running">
+    <h2>🚀 Running the Project</h2>
+
+    <h3>Common Commands</h3>
+<pre><code># Build everything (models + tests) for the full lifecycle lineage
+dbt build --select +FACT_EMPLOYEE_LIFECYCLE
+
+# Run only models (no tests)
+dbt run --select +FACT_EMPLOYEE_LIFECYCLE
+
+# Run only tests
+dbt test --select +FACT_EMPLOYEE_LIFECYCLE
+
+# Full refresh (recreate tables from scratch)
+dbt build --select +FACT_EMPLOYEE_LIFECYCLE --full-refresh
+
+# Run a specific layer
+dbt build --select tag:bronze
+dbt build --select tag:silver
+dbt build --select tag:gold
+
+# Run a single model and its tests
+dbt build --select DIM_EMPLOYEE</code></pre>
+
+    <h3>What Happens During a Build</h3>
+    <table class="tbl">
+        <thead><tr><th>Phase</th><th>Node Count</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td>on-run-start</td><td>1 hook</td><td>Create audit log table</td></tr>
+            <tr><td>Bronze</td><td>2 models + ~17 tests</td><td>ODS incremental load with purge/delete hooks</td></tr>
+            <tr><td>Silver</td><td>1 model + ~13 tests</td><td>CDM enrichment and transformation</td></tr>
+            <tr><td>Gold (Dim)</td><td>1 model + ~19 tests</td><td>SCD Type 2 merge</td></tr>
+            <tr><td>Gold (Fact)</td><td>1 model + ~23 tests</td><td>Full-refresh lifecycle event derivation</td></tr>
+            <tr><td>on-run-end</td><td>2 hooks</td><td>Capture run results + grant permissions</td></tr>
+        </tbody>
+    </table>
+    <p><strong>Total: ~6 models + 72 tests + 3 hooks = ~79 nodes per build</strong></p>
+</section>
+
+<section id="conventions">
+    <h2>📝 Naming Conventions</h2>
+
+    <table class="tbl">
+        <thead><tr><th>Element</th><th>Convention</th><th>Example</th></tr></thead>
+        <tbody>
+            <tr><td>Bronze Models</td><td><code>ODS_{SOURCE}_{ENTITY}</code></td><td><code>ODS_WORKDAY_EMPLOYEE</code></td></tr>
+            <tr><td>Silver Models</td><td><code>{ENTITY}</code> (business name)</td><td><code>EMPLOYEE</code></td></tr>
+            <tr><td>Gold Dimensions</td><td><code>DIM_{ENTITY}</code></td><td><code>DIM_EMPLOYEE</code></td></tr>
+            <tr><td>Gold Facts</td><td><code>FACT_{ENTITY}_{PROCESS}</code></td><td><code>FACT_EMPLOYEE_LIFECYCLE</code></td></tr>
+            <tr><td>Primary Keys</td><td><code>{LAYER}_{ENTITY}_PK</code></td><td><code>ODS_WORKDAY_EMPLOYEE_PK</code></td></tr>
+            <tr><td>Surrogate Keys</td><td><code>{ENTITY}_SK</code></td><td><code>EMPLOYEE_SK</code></td></tr>
+            <tr><td>Batch IDs</td><td><code>{LAYER}_INS_BATCH_ID</code></td><td><code>ODS_INS_BATCH_ID</code></td></tr>
+            <tr><td>Timestamps</td><td><code>{LAYER}_{ACTION}_TIMESTAMP</code></td><td><code>CDM_UPDATE_TIMESTAMP</code></td></tr>
+            <tr><td>Hash Columns</td><td><code>HASH_CHANGE</code>, <code>HASH_FULL</code></td><td>—</td></tr>
+            <tr><td>SCD Fields</td><td><code>EFF_DT</code>, <code>DISC_DT</code>, <code>IS_CURRENT</code></td><td>—</td></tr>
+            <tr><td>Source YAML</td><td><code>z_{source}_sources.yml</code> (z prefix sorts last)</td><td><code>z_workday_sources.yml</code></td></tr>
+            <tr><td>Tests (singular)</td><td><code>test_{model}_{description}</code></td><td><code>test_dim_employee_scd2_no_overlapping_dates</code></td></tr>
+            <tr><td>Tags</td><td>Layer + domain + source</td><td><code>["gold","workday","workforce","core-dims"]</code></td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section id="adding-model">
+    <h2>➕ Adding a New Model (Step-by-Step)</h2>
+    <p>Follow this checklist when adding a new entity to the medallion architecture:</p>
+
+    <h3>Step 1: Define Source</h3>
+    <div class="card">
+        <p>Create <code>models/1_bronze/{source}/z_{source}_sources.yml</code> with source database, schema, and tables.</p>
+    </div>
+
+    <h3>Step 2: Bronze (ODS) Model</h3>
+    <div class="card">
+        <ol>
+            <li>Create <code>ODS_{SOURCE}_{ENTITY}.sql</code> with the standard CTE pattern</li>
+            <li>Configure: <code>materialized='incremental'</code>, <code>unique_key</code>, <code>merge_condition</code> with hash, pre/post hooks</li>
+            <li>Add <code>generate_surrogate_key</code> for PK, <code>generate_hash_change</code> and <code>generate_hash_full</code></li>
+            <li>Include audit metadata columns (batch IDs, timestamps, operation type, DQ fields)</li>
+            <li>Create YAML with column definitions, marking <code>meta: { natural_key: true }</code> and <code>meta: { audit_column: true }</code></li>
+        </ol>
+    </div>
+
+    <h3>Step 3: Silver (CDM) Model</h3>
+    <div class="card">
+        <ol>
+            <li>Create <code>{ENTITY}.sql</code> referencing Bronze models via <code>{{ ref('ODS_...') }}</code></li>
+            <li>Apply business naming, type standardization, and cross-source enrichment</li>
+            <li>Configure incremental with hash-based merge condition</li>
+            <li>Add hash columns for downstream change detection</li>
+        </ol>
+    </div>
+
+    <h3>Step 4: Gold Dimension (SCD Type 2)</h3>
+    <div class="card">
+        <ol>
+            <li>Create <code>DIM_{ENTITY}.sql</code> with <code>materialized='scd_incremental'</code></li>
+            <li>Set <code>incremental_strategy='scd+merge'</code> and <code>timestamp_column</code></li>
+            <li>Map CDM <code>HASH_FULL</code> to <code>DBT_HASH</code></li>
+            <li>Add SCD fields: <code>EFF_DT = CURRENT_DATE</code>, <code>DISC_DT = '9999-12-31'</code>, <code>IS_CURRENT = true</code></li>
+            <li>Generate surrogate key from business key + EFF_DT</li>
+            <li>Add post-hook for soft-delete propagation if applicable</li>
+        </ol>
+    </div>
+
+    <h3>Step 5: Gold Fact (Optional)</h3>
+    <div class="card">
+        <ol>
+            <li>Create <code>FACT_{ENTITY}_{PROCESS}.sql</code> as <code>materialized='table'</code></li>
+            <li>Use <code>LAG()</code> window functions over SCD2 versions to detect events</li>
+            <li>Derive measures, flags, and fiscal calendar fields</li>
+        </ol>
+    </div>
+
+    <h3>Step 6: Tests</h3>
+    <div class="card">
+        <ol>
+            <li>Add generic tests in the model YAML (not_null, unique, accepted_values, relationships)</li>
+            <li>Create singular tests in <code>tests/singular/{model_name}/</code></li>
+            <li>Include cross-layer reconciliation tests (row counts, PK reconciliation, referential integrity)</li>
+            <li>Optionally use the LLM prompt in <code>tests/automation/LLM_prompt.txt</code> to generate a comprehensive test suite</li>
+        </ol>
+    </div>
+
+    <h3>Step 7: Update <code>dbt_project.yml</code></h3>
+    <div class="card">
+        <p>Add database/schema routing under the appropriate layer in the <code>models:</code> config block.</p>
+    </div>
+</section>
+
+<footer>
+    <p>RS Medallion Developer Guide · Built with dbt Core 1.9 + Snowflake · Generated March 2026</p>
+    <p>Source: <a href="https://github.com/ananth-gade/RS_Medallion">github.com/ananth-gade/RS_Medallion</a></p>
+</footer>
+
+</main>
+</div>
+
+<!-- ===== Active nav highlighting ===== -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const links = document.querySelectorAll('.nav-link');
+    const sections = [];
+    links.forEach(link => {
+        const id = link.getAttribute('href')?.replace('#', '');
+        if (id) { const el = document.getElementById(id); if (el) sections.push({ el, link }); }
+    });
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                links.forEach(l => l.classList.remove('active'));
+                const match = sections.find(s => s.el === entry.target);
+                if (match) match.link.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+    sections.forEach(s => observer.observe(s.el));
+});
+</script>
+
+</body>
+</html>

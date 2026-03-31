@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RS Medallion — dbt Developer Playbook</title>
+<style>
+/* ── Reset & Variables ────────────────────────────── */
+:root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --text:      #c9d1d9;
+    --text-dim:  #8b949e;
+    --accent:    #58a6ff;
+    --accent2:   #3fb950;
+    --accent3:   #d2a8ff;
+    --accent4:   #f0883e;
+    --danger:    #f85149;
+    --sidebar-w: 280px;
+    --code-bg:   #0d1117;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+       background: var(--bg); color: var(--text); line-height: 1.7; }
+
+/* ── Layout ───────────────────────────────────────── */
+.wrapper { display: flex; min-height: 100vh; }
+aside { position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh;
+        background: var(--surface); border-right: 1px solid var(--border);
+        overflow-y: auto; padding: 1.2rem 0; z-index: 100; }
+main { margin-left: var(--sidebar-w); flex: 1; max-width: 960px; padding: 2rem 3rem 4rem; }
+
+/* ── Sidebar ──────────────────────────────────────── */
+aside .logo { text-align: center; padding: .8rem 1rem 1rem; border-bottom: 1px solid var(--border); margin-bottom: .6rem; }
+aside .logo h2 { color: var(--accent); font-size: 1.1rem; letter-spacing: .5px; }
+aside .logo small { color: var(--text-dim); font-size: .72rem; }
+.nav-group { padding: .3rem 0; }
+.nav-group-title { color: var(--text-dim); font-size: .65rem; text-transform: uppercase;
+                   letter-spacing: 1.2px; padding: .4rem 1.2rem; }
+.nav-link { display: block; padding: .35rem 1.2rem .35rem 1.6rem; color: var(--text-dim);
+            text-decoration: none; font-size: .82rem; border-left: 3px solid transparent;
+            transition: all .15s ease; }
+.nav-link:hover { color: var(--text); background: rgba(88,166,255,.06); }
+.nav-link.active { color: var(--accent); border-left-color: var(--accent); background: rgba(88,166,255,.08); }
+
+/* ── Content ──────────────────────────────────────── */
+h1 { font-size: 2rem; color: #fff; margin-bottom: .5rem; }
+h2 { font-size: 1.45rem; color: var(--accent); margin: 2.5rem 0 1rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
+h3 { font-size: 1.1rem; color: var(--accent3); margin: 1.5rem 0 .6rem; }
+h4 { font-size: .95rem; color: var(--accent4); margin: 1.2rem 0 .4rem; }
+p  { margin-bottom: .8rem; }
+a  { color: var(--accent); }
+code { background: var(--surface); padding: .15em .4em; border-radius: 4px; font-size: .88em; color: var(--accent3); }
+pre  { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+       padding: 1rem 1.2rem; overflow-x: auto; margin: .8rem 0 1.2rem; line-height: 1.55; }
+pre code { background: none; padding: 0; color: var(--text); font-size: .84rem; }
+hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+ul, ol { margin: .5rem 0 1rem 1.3rem; }
+li { margin-bottom: .3rem; }
+
+/* ── Cards & Callouts ─────────────────────────────── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.1rem 1.3rem; margin: .8rem 0 1.2rem; }
+.callout { border-left: 4px solid; border-radius: 6px; padding: .9rem 1.1rem; margin: .8rem 0 1.2rem; }
+.callout.info    { border-color: var(--accent);  background: rgba(88,166,255,.07); }
+.callout.success { border-color: var(--accent2); background: rgba(63,185,80,.07); }
+.callout.warning { border-color: var(--accent4); background: rgba(240,136,62,.07); }
+.callout.tip     { border-color: var(--accent3); background: rgba(210,168,255,.07); }
+.callout .callout-title { font-weight: 600; margin-bottom: .3rem; }
+.callout.info .callout-title    { color: var(--accent); }
+.callout.success .callout-title { color: var(--accent2); }
+.callout.warning .callout-title { color: var(--accent4); }
+.callout.tip .callout-title     { color: var(--accent3); }
+
+/* Reference Example callout */
+.ref-example { border: 1px solid var(--border); border-left: 4px solid var(--accent2);
+               border-radius: 6px; padding: 1rem 1.2rem; margin: 1rem 0 1.4rem;
+               background: rgba(63,185,80,.04); }
+.ref-example .ref-tag { display: inline-block; background: rgba(63,185,80,.15); color: var(--accent2);
+                         padding: .15rem .6rem; border-radius: 4px; font-size: .72rem;
+                         font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: .5rem; }
+.ref-example h4 { color: var(--accent2); margin: .3rem 0 .5rem; font-size: .95rem; }
+
+/* ── Tags ─────────────────────────────────────────── */
+.layer-tag { display: inline-block; padding: .15rem .55rem; border-radius: 4px;
+             font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.tag-bronze { background: rgba(240,136,62,.15); color: var(--accent4); }
+.tag-silver { background: rgba(136,136,136,.15); color: #aaa; }
+.tag-gold   { background: rgba(210,168,255,.15); color: var(--accent3); }
+.tag-audit  { background: rgba(88,166,255,.15); color: var(--accent); }
+
+/* ── Tables ───────────────────────────────────────── */
+.tbl { width: 100%; border-collapse: collapse; margin: .8rem 0 1.2rem; font-size: .85rem; }
+.tbl th, .tbl td { padding: .55rem .7rem; border: 1px solid var(--border); text-align: left; }
+.tbl th { background: var(--surface); color: var(--accent); font-weight: 600; }
+.tbl tr:nth-child(even) td { background: rgba(22,27,34,.5); }
+
+/* ── File Tree ────────────────────────────────────── */
+.file-tree { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+             padding: 1rem 1.2rem; font-family: monospace; font-size: .82rem; line-height: 1.65; margin: .8rem 0 1.2rem; }
+.file-tree .dir  { color: var(--accent); }
+.file-tree .file { color: var(--text-dim); }
+.file-tree .ann  { color: var(--accent4); font-style: italic; }
+
+/* ── Architecture Diagram ─────────────────────────── */
+.arch-diagram { display: flex; gap: 0; align-items: center; flex-wrap: wrap;
+                justify-content: center; margin: 1.5rem 0; }
+.arch-box { padding: .7rem 1.1rem; border-radius: 8px; text-align: center;
+            font-weight: 600; font-size: .85rem; min-width: 130px; }
+.arch-arrow { font-size: 1.3rem; color: var(--text-dim); padding: 0 .3rem; }
+.arch-box.bronze { background: rgba(240,136,62,.12); border: 1px solid rgba(240,136,62,.3); color: var(--accent4); }
+.arch-box.silver { background: rgba(136,136,136,.12); border: 1px solid rgba(136,136,136,.3); color: #aaa; }
+.arch-box.gold   { background: rgba(210,168,255,.12); border: 1px solid rgba(210,168,255,.3); color: var(--accent3); }
+.arch-box.audit  { background: rgba(88,166,255,.12); border: 1px solid rgba(88,166,255,.3); color: var(--accent); }
+
+/* ── Step Badges ──────────────────────────────────── */
+.steps { counter-reset: step; margin: 1rem 0; }
+.steps .step { display: flex; gap: .8rem; margin-bottom: 1rem; }
+.steps .step::before { counter-increment: step; content: counter(step);
+    min-width: 28px; height: 28px; background: var(--accent); color: var(--bg);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .8rem; flex-shrink: 0; margin-top: .15rem; }
+
+/* ── Template Blocks ──────────────────────────────── */
+.template-block { position: relative; }
+.template-block .template-badge { position: absolute; top: 8px; right: 12px; background: rgba(88,166,255,.15);
+    color: var(--accent); padding: .1rem .5rem; border-radius: 4px; font-size: .65rem;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .8px; }
+
+/* ── Footer ───────────────────────────────────────── */
+footer { text-align: center; padding: 2rem 0; color: var(--text-dim); font-size: .8rem;
+         border-top: 1px solid var(--border); margin-top: 3rem; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<aside>
+    <div class="logo">
+        <h2>RS Medallion</h2>
+        <small>dbt Developer Playbook</small>
+    </div>
+
+    <nav>
+        <div class="nav-group">
+            <div class="nav-group-title">Getting Started</div>
+            <a class="nav-link active" href="#overview">Overview</a>
+            <a class="nav-link" href="#architecture">Architecture</a>
+            <a class="nav-link" href="#project-structure">Project Structure</a>
+            <a class="nav-link" href="#conventions">Naming Conventions</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-title">Layer Templates</div>
+            <a class="nav-link" href="#bronze-template">Bronze (ODS)</a>
+            <a class="nav-link" href="#silver-template">Silver (CDM)</a>
+            <a class="nav-link" href="#gold-dim-template">Gold — Dimension (SCD2)</a>
+            <a class="nav-link" href="#gold-fact-template">Gold — Fact Table</a>
+            <a class="nav-link" href="#audit-layer">Audit Layer</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-title">Core Concepts</div>
+            <a class="nav-link" href="#data-flow">Data Flow Pipeline</a>
+            <a class="nav-link" href="#scd-concepts">SCD Type 1 vs Type 2</a>
+            <a class="nav-link" href="#materializations">Materializations</a>
+            <a class="nav-link" href="#incremental-strategy">Incremental Strategy</a>
+            <a class="nav-link" href="#hash-cdc">Hash-Based CDC</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-title">Macros & Helpers</div>
+            <a class="nav-link" href="#macro-overview">Macro Catalog</a>
+            <a class="nav-link" href="#scd-engine">SCD Merge Engine</a>
+            <a class="nav-link" href="#helper-macros">Helper Macros</a>
+            <a class="nav-link" href="#purge-macros">Purge Macros</a>
+            <a class="nav-link" href="#audit-macros">Audit Macros</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-title">Testing</div>
+            <a class="nav-link" href="#testing-framework">Testing Strategy</a>
+            <a class="nav-link" href="#generic-tests">Generic Tests</a>
+            <a class="nav-link" href="#singular-tests">Singular Tests</a>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-title">Operations</div>
+            <a class="nav-link" href="#dev-workflow">Developer Workflow</a>
+            <a class="nav-link" href="#running">Running Builds</a>
+        </div>
+    </nav>
+</aside>
+
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<main>
+
+<h1>🏗️ RS Medallion — Developer Playbook</h1>
+<p style="color:var(--text-dim); margin-bottom:2rem;">
+    A generic, reusable guide for building data pipelines with the Medallion Architecture in dbt + Snowflake.<br>
+    Every pattern shown here is illustrated with <strong>real reference implementations</strong> from the repository.
+</p>
+
+<div class="callout info">
+    <div class="callout-title">📖 How to Use This Guide</div>
+    <p>Each section describes the <strong>generic pattern</strong> first, followed by a
+    <span style="color:var(--accent2);">◼ Reference Implementation</span> block that shows the actual model
+    from this repo. When building a new entity, copy the template, swap in your entity name, and follow the same structure.</p>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════ OVERVIEW ═══════════════════════ -->
+<section id="overview">
+    <h2>📋 Overview</h2>
+    <p>This playbook documents the patterns, macros, and conventions used to build end-to-end data pipelines in the
+       <strong>RS Medallion</strong> repository. The framework follows a four-layer Medallion Architecture:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Layer</th><th>Purpose</th><th>Naming Pattern</th><th>Materialization</th></tr></thead>
+        <tbody>
+            <tr><td><span class="layer-tag tag-bronze">Bronze</span></td><td>Raw data ingestion (1:1 with source)</td><td><code>ODS_{SOURCE}_{ENTITY}</code></td><td>Incremental (merge)</td></tr>
+            <tr><td><span class="layer-tag tag-silver">Silver</span></td><td>Cleansed, conformed, enriched</td><td><code>{ENTITY}</code></td><td>Incremental (merge)</td></tr>
+            <tr><td><span class="layer-tag tag-gold">Gold</span></td><td>Dimensional model (Dims &amp; Facts)</td><td><code>DIM_{ENTITY}</code> / <code>FACT_{ENTITY}_{PROCESS}</code></td><td>SCD Incremental / Table</td></tr>
+            <tr><td><span class="layer-tag tag-audit">Audit</span></td><td>Run metadata &amp; lineage tracking</td><td><code>DBT_RUN_RESULTS</code></td><td>Incremental</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout tip">
+        <div class="callout-title">Technology Stack</div>
+        <p><strong>dbt Core 1.9</strong> · <strong>Snowflake</strong> adapter · Custom <code>scd_incremental</code> materialization ·
+           Hash-based CDC · dbt_utils, dbt_external_tables, logging packages</p>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ ARCHITECTURE ═══════════════════════ -->
+<section id="architecture">
+    <h2>🏛️ Architecture</h2>
+    <p>Data flows through four layers. Each layer has a dedicated Snowflake database, its own naming convention, and a standard set of audit columns.</p>
+
+    <div class="arch-diagram">
+        <div class="arch-box bronze">🔶 Bronze<br><small>ODS — Raw Ingest</small></div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box silver">⬜ Silver<br><small>CDM — Conform</small></div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box gold">🟣 Gold<br><small>Core — Dims &amp; Facts</small></div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box audit">🔵 Audit<br><small>Run Metadata</small></div>
+    </div>
+
+    <h3>Database Routing</h3>
+    <p>Each layer routes to a separate Snowflake database using the <code>generate_schema_name</code> macro in <code>dbt_project.yml</code>:</p>
+    <pre><code># dbt_project.yml — database routing pattern
+models:
+  rs_medallion:
+    1_bronze:
+      {source_name}:              # e.g. workday, es_eqai
+        +database: "{SOURCE_DB}"  # WORKDAY, EQAI
+        +schema: ODS
+    2_silver:
+      cdm:
+        {domain}:                 # e.g. workforce
+          +database: CDM
+          +schema: "{DOMAIN}"     # WORKFORCE
+    3_gold:
+      core:
+        {sub_domain}:             # e.g. shared_dims, workforce
+          +database: CORE
+          +schema: "{SUB_DOMAIN}"</code></pre>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference Implementation</span>
+        <h4>Employee Pipeline Routing</h4>
+        <pre><code>1_bronze:
+  workday:   +database: WORKDAY   +schema: ODS      # → WORKDAY.ODS.ODS_WORKDAY_EMPLOYEE
+  es_eqai:   +database: EQAI      +schema: ODS      # → EQAI.ODS.ODS_ES_EQAI_USERS
+2_silver:
+  cdm:
+    workforce: +database: CDM     +schema: WORKFORCE # → CDM.WORKFORCE.EMPLOYEE
+3_gold:
+  core:
+    shared_dims: +database: CORE  +schema: SHARED_DIMS # → CORE.SHARED_DIMS.DIM_EMPLOYEE
+    workforce:   +database: CORE  +schema: WORKFORCE   # → CORE.WORKFORCE.FACT_EMPLOYEE_LIFECYCLE</code></pre>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ PROJECT STRUCTURE ═══════════════════════ -->
+<section id="project-structure">
+    <h2>📁 Project Structure</h2>
+    <div class="file-tree">
+<span class="dir">RS_Medallion/</span>
+├── <span class="file">dbt_project.yml</span>          <span class="ann">← project config, database routing</span>
+├── <span class="file">packages.yml</span>              <span class="ann">← dbt_utils, external_tables, logging</span>
+├── <span class="dir">macros/</span>
+│   ├── <span class="dir">audit/</span>                <span class="ann">← run results capture, schema gen</span>
+│   ├── <span class="dir">helpers/</span>              <span class="ann">← hashing, surrogate keys, trimming</span>
+│   ├── <span class="dir">purge/</span>               <span class="ann">← staging dedup, soft-delete propagation</span>
+│   ├── <span class="dir">scd_engines/</span>         <span class="ann">← custom scd_incremental materialization</span>
+│   └── <span class="dir">utils/</span>               <span class="ann">← admin / helper queries</span>
+├── <span class="dir">models/</span>
+│   ├── <span class="dir">0_audit/</span>              <span class="ann">← DBT_RUN_RESULTS + audit schema YAML</span>
+│   ├── <span class="dir">1_bronze/</span>
+│   │   ├── <span class="dir">{source}/</span>         <span class="ann">← one folder per source system</span>
+│   │   │   ├── <span class="file">ODS_{SOURCE}_{ENTITY}.sql</span>
+│   │   │   ├── <span class="file">{entity}_schema.yml</span>        <span class="ann">← column docs + tests</span>
+│   │   │   └── <span class="file">z_{source}_sources.yml</span>     <span class="ann">← source definition</span>
+│   ├── <span class="dir">2_silver/</span>
+│   │   └── <span class="dir">cdm/{domain}/</span>     <span class="ann">← one folder per business domain</span>
+│   │       ├── <span class="file">{ENTITY}.sql</span>
+│   │       └── <span class="file">{entity}_schema.yml</span>
+│   └── <span class="dir">3_gold/</span>
+│       └── <span class="dir">core/{sub_domain}/</span>
+│           ├── <span class="file">DIM_{ENTITY}.sql</span>
+│           ├── <span class="file">FACT_{ENTITY}_{PROCESS}.sql</span>
+│           └── <span class="file">{entity}_schema.yml</span>
+├── <span class="dir">tests/</span>
+│   ├── <span class="dir">generic/</span>              <span class="ann">← reusable test macros</span>
+│   ├── <span class="dir">singular/</span>             <span class="ann">← per-model test SQL files</span>
+│   └── <span class="dir">automation/</span>           <span class="ann">← LLM prompt for test generation</span>
+├── <span class="dir">seeds/</span>
+└── <span class="dir">snapshots/</span>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ NAMING CONVENTIONS ═══════════════════════ -->
+<section id="conventions">
+    <h2>📝 Naming Conventions</h2>
+    <p>Consistent naming is critical for automation, lineage readability, and onboarding. Follow these patterns for every entity:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Element</th><th>Convention</th><th>Example</th></tr></thead>
+        <tbody>
+            <tr><td>Bronze Models</td><td><code>ODS_{SOURCE}_{ENTITY}</code></td><td><code>ODS_WORKDAY_EMPLOYEE</code>, <code>ODS_ES_EQAI_USERS</code></td></tr>
+            <tr><td>Silver Models</td><td><code>{ENTITY}</code> (business name)</td><td><code>EMPLOYEE</code>, <code>LOCATION</code></td></tr>
+            <tr><td>Gold Dimensions</td><td><code>DIM_{ENTITY}</code></td><td><code>DIM_EMPLOYEE</code>, <code>DIM_LOCATION</code></td></tr>
+            <tr><td>Gold Facts</td><td><code>FACT_{ENTITY}_{PROCESS}</code></td><td><code>FACT_EMPLOYEE_LIFECYCLE</code></td></tr>
+            <tr><td>Primary Keys</td><td><code>{LAYER}_{ENTITY}_PK</code></td><td><code>ODS_WORKDAY_EMPLOYEE_PK</code></td></tr>
+            <tr><td>Surrogate Keys</td><td><code>{ENTITY}_SK</code></td><td><code>EMPLOYEE_SK</code></td></tr>
+            <tr><td>Batch IDs</td><td><code>{LAYER}_INS_BATCH_ID</code> / <code>_UPD_BATCH_ID</code></td><td><code>ODS_INS_BATCH_ID</code></td></tr>
+            <tr><td>Timestamps</td><td><code>{LAYER}_{ACTION}_TIMESTAMP</code></td><td><code>CDM_INSERT_TIMESTAMP</code></td></tr>
+            <tr><td>Hash Columns</td><td><code>HASH_CHANGE</code> (Type 2 fields), <code>HASH_FULL</code> (all fields)</td><td>—</td></tr>
+            <tr><td>SCD Fields</td><td><code>EFF_DT</code>, <code>DISC_DT</code>, <code>IS_CURRENT</code></td><td>—</td></tr>
+            <tr><td>Source YAML</td><td><code>z_{source}_sources.yml</code> (z-prefix sorts last)</td><td><code>z_workday_sources.yml</code></td></tr>
+            <tr><td>Schema YAML</td><td><code>{entity}_schema.yml</code></td><td><code>employee_schema.yml</code></td></tr>
+            <tr><td>Test Files</td><td><code>test_{model}_{description}</code></td><td><code>test_dim_employee_scd2_no_gaps</code></td></tr>
+            <tr><td>Tags</td><td>Layer + domain + source</td><td><code>["bronze","workday","workforce"]</code></td></tr>
+        </tbody>
+    </table>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ BRONZE TEMPLATE ═══════════════════════ -->
+<section id="bronze-template">
+    <h2><span class="layer-tag tag-bronze">Bronze</span> ODS Layer — Template</h2>
+    <p>The Bronze layer ingests raw data from source systems with <strong>minimal transformation</strong>. Each source table maps 1:1 to an ODS model.
+       The goal is to create an auditable, hash-tracked, incrementally loaded copy of the source.</p>
+
+    <h3>Standard Configuration Block</h3>
+    <p>Every Bronze model must include these config keys:</p>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>{{
+    config(
+        materialized   = 'incremental',
+        unique_key     = 'ODS_{SOURCE}_{ENTITY}_PK',
+        tags           = ["bronze", "{source}", "{domain}"],
+        on_schema_change = 'append_new_columns',
+
+        -- Hash-based merge: only update when data changes
+        merge_condition = 'DBT_INTERNAL_DEST.HASH_FULL <> DBT_INTERNAL_SOURCE.HASH_FULL',
+
+        -- Pre-hook: deduplicate staging before merge
+        pre_hook  = "{{ purge_staging_duplicates_by_hash(
+                        '{SOURCE_DB}.STG.STG_{SOURCE}_{ENTITY}',
+                        ['NATURAL_KEY_COL1','NATURAL_KEY_COL2'],
+                        'HASH_FULL') }}",
+
+        -- Post-hook: propagate source deletes as soft-deletes
+        post_hook = "{{ mark_deleted_records(
+                        this,
+                        '{SOURCE_DB}.STG.STG_{SOURCE}_{ENTITY}',
+                        ['NATURAL_KEY_COL1','NATURAL_KEY_COL2'],
+                        'DQ_ACTIVE_FLG') }}"
+    )
+}}</code></pre>
+    </div>
+
+    <h3>Standard CTE Pattern</h3>
+    <p>Bronze models follow a 3-CTE structure: <strong>source → transform → final</strong>.</p>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>-- CTE 1: Source — pull from staging
+WITH source AS (
+    SELECT * FROM {{ source('{source_name}', 'STG_{SOURCE}_{ENTITY}') }}
+    {% if is_incremental() %}
+    WHERE METADATA_TIMESTAMP >= {{ get_max_event_time('METADATA_TIMESTAMP') }}
+    {% endif %}
+),
+
+-- CTE 2: Transform — add keys, hashes, audit columns
+transformed AS (
+    SELECT
+        -- Surrogate primary key
+        {{ generate_surrogate_key(['NATURAL_KEY_COL1', 'NATURAL_KEY_COL2']) }}
+            AS ODS_{SOURCE}_{ENTITY}_PK,
+
+        -- Source columns (trim strings)
+        {{ trim_string('COL_A') }}          AS COL_A,
+        {{ trim_string('COL_B') }}          AS COL_B,
+        CAST(COL_C AS DATE)                 AS COL_C,
+
+        -- Hash columns for CDC
+        {{ generate_hash_change(['TYPE2_COL_A', 'TYPE2_COL_B']) }} AS HASH_CHANGE,
+        {{ generate_hash_full(['COL_A', 'COL_B', 'COL_C']) }}     AS HASH_FULL,
+
+        -- Audit metadata
+        '{{ invocation_id }}'               AS ODS_INS_BATCH_ID,
+        '{{ invocation_id }}'               AS ODS_UPD_BATCH_ID,
+        CURRENT_TIMESTAMP()                 AS ODS_INSERT_TIMESTAMP,
+        CURRENT_TIMESTAMP()                 AS ODS_UPDATE_TIMESTAMP,
+        'I'                                 AS DQ_OPERATION_TYPE,
+        'Y'                                 AS DQ_ACTIVE_FLG,
+        CURRENT_TIMESTAMP()                 AS METADATA_TIMESTAMP
+
+    FROM source
+)
+
+SELECT * FROM transformed</code></pre>
+    </div>
+
+    <h3>Required Audit Columns</h3>
+    <table class="tbl">
+        <thead><tr><th>Column</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>ODS_{SOURCE}_{ENTITY}_PK</code></td><td>VARCHAR</td><td>Surrogate key (MD5 hash of natural keys)</td></tr>
+            <tr><td><code>HASH_CHANGE</code></td><td>VARCHAR</td><td>MD5 of SCD-2 tracked columns (drives change detection)</td></tr>
+            <tr><td><code>HASH_FULL</code></td><td>VARCHAR</td><td>MD5 of all business columns (drives merge condition)</td></tr>
+            <tr><td><code>ODS_INS_BATCH_ID</code></td><td>VARCHAR</td><td>dbt invocation_id at insert</td></tr>
+            <tr><td><code>ODS_UPD_BATCH_ID</code></td><td>VARCHAR</td><td>dbt invocation_id at last update</td></tr>
+            <tr><td><code>ODS_INSERT_TIMESTAMP</code></td><td>TIMESTAMP</td><td>Row creation time</td></tr>
+            <tr><td><code>ODS_UPDATE_TIMESTAMP</code></td><td>TIMESTAMP</td><td>Row last-update time</td></tr>
+            <tr><td><code>DQ_OPERATION_TYPE</code></td><td>CHAR(1)</td><td>I = Insert, U = Update, D = Delete</td></tr>
+            <tr><td><code>DQ_ACTIVE_FLG</code></td><td>CHAR(1)</td><td>Y = Active, N = Soft-deleted</td></tr>
+            <tr><td><code>METADATA_TIMESTAMP</code></td><td>TIMESTAMP</td><td>Source system event time (incremental watermark)</td></tr>
+        </tbody>
+    </table>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference Implementation</span>
+        <h4>ODS_WORKDAY_EMPLOYEE · <code>models/1_bronze/workday/ODS_WORKDAY_EMPLOYEE.sql</code></h4>
+        <ul>
+            <li><strong>Source:</strong> <code>{{ source('workday','STG_WORKDAY_EMPLOYEE') }}</code></li>
+            <li><strong>Natural keys:</strong> <code>EMPLOYEE_ID</code></li>
+            <li><strong>Hash-change cols:</strong> Business Name, Email, Job Code, Manager ID, Status, Location, etc.</li>
+            <li><strong>Hash-full cols:</strong> All source columns</li>
+            <li><strong>Hooks:</strong> Pre-hook deduplicates staging by <code>EMPLOYEE_ID</code> + <code>HASH_FULL</code>; Post-hook marks deletes via <code>DQ_ACTIVE_FLG</code></li>
+        </ul>
+    </div>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference Implementation</span>
+        <h4>ODS_ES_EQAI_USERS · <code>models/1_bronze/es_eqai/ODS_ES_EQAI_USERS.sql</code></h4>
+        <ul>
+            <li><strong>Source:</strong> <code>{{ source('es_eqai','STG_ES_EQAI_USERS') }}</code></li>
+            <li><strong>Natural keys:</strong> <code>USER_ACCOUNT_ID</code></li>
+            <li>Same CTE pattern, same audit columns, different source system</li>
+        </ul>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ SILVER TEMPLATE ═══════════════════════ -->
+<section id="silver-template">
+    <h2><span class="layer-tag tag-silver">Silver</span> CDM Layer — Template</h2>
+    <p>The Silver layer creates a <strong>Conformed Data Model (CDM)</strong> — a single, clean, business-named entity
+       that may combine multiple Bronze sources. This is where cross-source enrichment, type standardization,
+       and business logic consolidation happen.</p>
+
+    <h3>Standard Configuration Block</h3>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>{{
+    config(
+        materialized   = 'incremental',
+        unique_key     = '{ENTITY}_PK',
+        tags           = ["silver", "{domain}"],
+        on_schema_change = 'append_new_columns',
+
+        merge_condition = 'DBT_INTERNAL_DEST.HASH_FULL <> DBT_INTERNAL_SOURCE.HASH_FULL'
+    )
+}}</code></pre>
+    </div>
+
+    <h3>Standard CTE Pattern</h3>
+    <p>Silver models use a multi-CTE pattern: <strong>primary source → secondary sources → enrichment joins → transformations → final</strong>.</p>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>-- CTE 1: Primary Bronze source
+WITH primary_source AS (
+    SELECT * FROM {{ ref('ODS_{SOURCE}_{ENTITY}') }}
+    WHERE DQ_ACTIVE_FLG = 'Y'  -- exclude soft-deletes
+    {% if is_incremental() %}
+    AND ODS_UPDATE_TIMESTAMP >= {{ get_max_event_time('CDM_UPDATE_TIMESTAMP') }}
+    {% endif %}
+),
+
+-- CTE 2+: Secondary Bronze sources (for enrichment)
+secondary_source AS (
+    SELECT * FROM {{ ref('ODS_{SOURCE2}_{ENTITY2}') }}
+    WHERE DQ_ACTIVE_FLG = 'Y'
+),
+
+-- CTE: Enriched — join primary with secondary
+enriched AS (
+    SELECT
+        p.*,
+        s.ENRICHMENT_COL_A,
+        s.ENRICHMENT_COL_B
+    FROM primary_source p
+    LEFT JOIN secondary_source s
+        ON p.JOIN_KEY = s.JOIN_KEY
+),
+
+-- CTE: Transformed — apply business naming, type casting, derivations
+transformed AS (
+    SELECT
+        -- Surrogate PK for this layer
+        {{ generate_surrogate_key(['NATURAL_KEY']) }} AS {ENTITY}_PK,
+
+        -- Business-named columns
+        CAST(SRC_COL_A AS VARCHAR)              AS BUSINESS_NAME_A,
+        CAST(SRC_COL_B AS DATE)                 AS BUSINESS_NAME_B,
+        COALESCE(ENRICHMENT_COL_A, 'Unknown')   AS ENRICHED_FIELD,
+
+        -- Hash columns for downstream
+        {{ generate_hash_change(['BUSINESS_NAME_A', 'BUSINESS_NAME_B']) }} AS HASH_CHANGE,
+        {{ generate_hash_full(['BUSINESS_NAME_A', 'BUSINESS_NAME_B', 'ENRICHED_FIELD']) }} AS HASH_FULL,
+
+        -- CDM audit columns
+        '{{ invocation_id }}'       AS CDM_INS_BATCH_ID,
+        '{{ invocation_id }}'       AS CDM_UPD_BATCH_ID,
+        CURRENT_TIMESTAMP()         AS CDM_INSERT_TIMESTAMP,
+        CURRENT_TIMESTAMP()         AS CDM_UPDATE_TIMESTAMP
+
+    FROM enriched
+)
+
+SELECT * FROM transformed</code></pre>
+    </div>
+
+    <h3>Key Differences from Bronze</h3>
+    <table class="tbl">
+        <thead><tr><th>Aspect</th><th>Bronze</th><th>Silver</th></tr></thead>
+        <tbody>
+            <tr><td>Source</td><td><code>{{ source() }}</code> — raw staging</td><td><code>{{ ref() }}</code> — other dbt models</td></tr>
+            <tr><td>Column names</td><td>Source-system names</td><td>Business / domain names</td></tr>
+            <tr><td>Joins</td><td>None (single source)</td><td>Multi-source enrichment</td></tr>
+            <tr><td>Hooks</td><td>Pre-hook + post-hook</td><td>Typically none</td></tr>
+            <tr><td>Naming</td><td><code>ODS_{SOURCE}_{ENTITY}</code></td><td><code>{ENTITY}</code></td></tr>
+        </tbody>
+    </table>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference Implementation</span>
+        <h4>EMPLOYEE · <code>models/2_silver/cdm/workforce/EMPLOYEE.sql</code></h4>
+        <ul>
+            <li><strong>Primary source:</strong> <code>{{ ref('ODS_WORKDAY_EMPLOYEE') }}</code></li>
+            <li><strong>Secondary source:</strong> <code>{{ ref('ODS_ES_EQAI_USERS') }}</code> (LEFT JOIN on <code>EMPLOYEE_ID</code>)</li>
+            <li><strong>Enrichment:</strong> Pulls <code>USER_ACCOUNT_ID</code>, <code>EHS_USER_STATUS</code>, <code>EHS_LAST_LOGIN_DT</code> from EQAI</li>
+            <li><strong>Transformations:</strong> Renames Workday columns to business names (<code>WD_EMPLOYEE_ID → EMPLOYEE_ID</code>),
+                casts dates, trims strings, derives full name from components</li>
+            <li><strong>Hash-change cols:</strong> All SCD-2 tracked business attributes</li>
+        </ul>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ GOLD DIM TEMPLATE ═══════════════════════ -->
+<section id="gold-dim-template">
+    <h2><span class="layer-tag tag-gold">Gold</span> Dimension (SCD Type 2) — Template</h2>
+    <p>Gold Dimensions implement <strong>Slowly Changing Dimension Type 2</strong> using the custom <code>scd_incremental</code>
+       materialization. Each change to a tracked attribute creates a new version row with effective/discontinue dates.</p>
+
+    <h3>Standard Configuration Block</h3>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>{{
+    config(
+        materialized         = 'scd_incremental',
+        unique_key           = '{ENTITY}_SK',
+        incremental_strategy = 'scd+merge',
+        tags                 = ["gold", "{domain}", "core-dims"],
+        on_schema_change     = 'append_new_columns',
+
+        -- SCD2 engine config
+        timestamp_column     = 'CORE_UPDATE_TIMESTAMP',
+        dest_columns         = ['HASH_CHANGE', 'DBT_HASH', 'DISC_DT', 'IS_CURRENT'],
+        merge_condition      = 'DBT_INTERNAL_DEST.DBT_HASH <> DBT_INTERNAL_SOURCE.DBT_HASH',
+        matched_condition    = 'DBT_INTERNAL_DEST.IS_CURRENT = TRUE',
+
+        -- Post-hook: mark discontinued rows from soft-deleted source records
+        post_hook = "UPDATE {{ this }}
+                     SET IS_CURRENT = FALSE,
+                         DISC_DT    = CURRENT_DATE
+                     WHERE {NATURAL_KEY} NOT IN (
+                         SELECT {NATURAL_KEY}
+                         FROM {{ ref('{ENTITY}') }}
+                     )
+                     AND IS_CURRENT = TRUE"
+    )
+}}</code></pre>
+    </div>
+
+    <h3>Standard CTE Pattern</h3>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>WITH source AS (
+    SELECT * FROM {{ ref('{ENTITY}') }}  -- Silver CDM model
+    {% if is_incremental() %}
+    WHERE CDM_UPDATE_TIMESTAMP >= {{ get_max_event_time('CORE_UPDATE_TIMESTAMP') }}
+    {% endif %}
+),
+
+transformed AS (
+    SELECT
+        -- Surrogate key: natural key + effective date → unique per version
+        {{ generate_surrogate_key(['NATURAL_KEY', 'EFF_DT']) }} AS {ENTITY}_SK,
+
+        -- Natural / business key (carried from CDM)
+        NATURAL_KEY,
+
+        -- Dimension attributes
+        ATTRIBUTE_A,
+        ATTRIBUTE_B,
+        ATTRIBUTE_C,
+
+        -- Hash columns
+        HASH_CHANGE,
+        HASH_CHANGE AS DBT_HASH,  -- mapped for SCD engine
+
+        -- SCD2 metadata
+        CURRENT_DATE                AS EFF_DT,
+        CAST('9999-12-31' AS DATE)  AS DISC_DT,
+        TRUE                        AS IS_CURRENT,
+
+        -- Gold audit columns
+        '{{ invocation_id }}'       AS CORE_INS_BATCH_ID,
+        '{{ invocation_id }}'       AS CORE_UPD_BATCH_ID,
+        CURRENT_TIMESTAMP()         AS CORE_INSERT_TIMESTAMP,
+        CURRENT_TIMESTAMP()         AS CORE_UPDATE_TIMESTAMP
+
+    FROM source
+)
+
+SELECT * FROM transformed</code></pre>
+    </div>
+
+    <h3>How the SCD2 Engine Works</h3>
+    <div class="card">
+        <p>When the <code>scd+merge</code> strategy executes:</p>
+        <ol>
+            <li><strong>MATCH + CHANGED:</strong> The existing current row's <code>IS_CURRENT</code> → FALSE and <code>DISC_DT</code> → today (via <code>merge.sql</code>)</li>
+            <li><strong>INSERT:</strong> New version row inserted with <code>IS_CURRENT = TRUE</code>, <code>EFF_DT = today</code>, <code>DISC_DT = 9999-12-31</code></li>
+            <li><strong>MATCH + UNCHANGED:</strong> Only audit timestamps are updated (no new version)</li>
+            <li><strong>NOT MATCHED:</strong> Brand-new record inserted as first version</li>
+        </ol>
+    </div>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference Implementation</span>
+        <h4>DIM_EMPLOYEE · <code>models/3_gold/core/shared_dims/DIM_EMPLOYEE.sql</code></h4>
+        <ul>
+            <li><strong>Source:</strong> <code>{{ ref('EMPLOYEE') }}</code> (Silver CDM)</li>
+            <li><strong>Surrogate key:</strong> <code>EMPLOYEE_SK = MD5(EMPLOYEE_ID || EFF_DT)</code></li>
+            <li><strong>Tracked attributes:</strong> Name, Email, Job Code, Manager, Status, Location, Compensation, etc.</li>
+            <li><strong>Post-hook:</strong> Discontinues employees deleted from source</li>
+            <li><strong>SCD2 columns:</strong> <code>EFF_DT</code>, <code>DISC_DT</code>, <code>IS_CURRENT</code></li>
+        </ul>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ GOLD FACT TEMPLATE ═══════════════════════ -->
+<section id="gold-fact-template">
+    <h2><span class="layer-tag tag-gold">Gold</span> Fact Table — Template</h2>
+    <p>Fact tables derive <strong>measurable events</strong> from SCD2 dimension versions. They use <code>LAG()</code>
+       window functions to compare consecutive versions and detect what changed.</p>
+
+    <h3>Standard Configuration Block</h3>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>{{
+    config(
+        materialized = 'table',          -- full refresh each run
+        tags         = ["gold", "{domain}", "core-facts"]
+    )
+}}</code></pre>
+    </div>
+
+    <h3>Event Detection Pattern</h3>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>WITH dim_versions AS (
+    SELECT
+        *,
+        -- Compare to previous version
+        LAG(ATTRIBUTE_A) OVER (PARTITION BY NATURAL_KEY ORDER BY EFF_DT)  AS PREV_ATTRIBUTE_A,
+        LAG(ATTRIBUTE_B) OVER (PARTITION BY NATURAL_KEY ORDER BY EFF_DT)  AS PREV_ATTRIBUTE_B,
+        LAG(EFF_DT)      OVER (PARTITION BY NATURAL_KEY ORDER BY EFF_DT)  AS PREV_EFF_DT,
+        ROW_NUMBER()      OVER (PARTITION BY NATURAL_KEY ORDER BY EFF_DT)  AS VERSION_NUM
+    FROM {{ ref('DIM_{ENTITY}') }}
+),
+
+events AS (
+    SELECT
+        {{ generate_surrogate_key(['NATURAL_KEY', 'EFF_DT', 'EVENT_TYPE']) }}
+            AS FACT_{ENTITY}_{PROCESS}_PK,
+        NATURAL_KEY,
+
+        -- Derived event type
+        CASE
+            WHEN VERSION_NUM = 1                           THEN 'INITIAL'
+            WHEN ATTRIBUTE_A <> PREV_ATTRIBUTE_A           THEN 'ATTRIBUTE_A_CHANGE'
+            WHEN ATTRIBUTE_B <> PREV_ATTRIBUTE_B           THEN 'ATTRIBUTE_B_CHANGE'
+            ELSE 'OTHER_CHANGE'
+        END AS EVENT_TYPE,
+
+        -- Measures
+        DATEDIFF('day', PREV_EFF_DT, EFF_DT)              AS DAYS_SINCE_LAST_CHANGE,
+
+        -- Event date
+        EFF_DT                                              AS EVENT_DATE,
+
+        -- Audit
+        '{{ invocation_id }}'                               AS CORE_INS_BATCH_ID,
+        CURRENT_TIMESTAMP()                                 AS CORE_INSERT_TIMESTAMP
+
+    FROM dim_versions
+)
+
+SELECT * FROM events</code></pre>
+    </div>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference Implementation</span>
+        <h4>FACT_EMPLOYEE_LIFECYCLE · <code>models/3_gold/core/workforce/FACT_EMPLOYEE_LIFECYCLE.sql</code></h4>
+        <ul>
+            <li><strong>Source:</strong> <code>{{ ref('DIM_EMPLOYEE') }}</code> — all SCD2 versions</li>
+            <li><strong>Events detected:</strong> HIRE, TERMINATION, REHIRE, JOB_CHANGE, COMPENSATION_CHANGE, MANAGER_CHANGE, STATUS_CHANGE, LOCATION_CHANGE</li>
+            <li><strong>Measures:</strong> TENURE_DAYS, DAYS_IN_PREVIOUS_ROLE, COMPENSATION_CHANGE_AMOUNT, COMPENSATION_CHANGE_PCT</li>
+            <li><strong>Flags:</strong> IS_PROMOTION, IS_LATERAL_MOVE, IS_VOLUNTARY_TERMINATION</li>
+            <li><strong>Fiscal calendar:</strong> EVENT_FISCAL_YEAR, EVENT_FISCAL_QUARTER derived from EVENT_DATE</li>
+        </ul>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ AUDIT LAYER ═══════════════════════ -->
+<section id="audit-layer">
+    <h2><span class="layer-tag tag-audit">Audit</span> Layer</h2>
+    <p>The Audit layer captures metadata about every dbt run — row counts, execution times, warnings, errors — for observability and debugging.</p>
+
+    <h3>How It Works</h3>
+    <div class="steps">
+        <div class="step"><div><strong>on-run-start:</strong> The <code>audit()</code> macro creates <code>AUDIT.DBT_MONITORING.DBT_RUN_RESULTS</code> if it doesn't exist</div></div>
+        <div class="step"><div><strong>Model execution:</strong> dbt runs all models and tests as normal</div></div>
+        <div class="step"><div><strong>on-run-end:</strong> The <code>capture_run_results()</code> macro iterates over <code>results</code> and inserts one row per node into the audit table</div></div>
+    </div>
+
+    <h3>Audit Table Schema</h3>
+    <table class="tbl">
+        <thead><tr><th>Column</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>INVOCATION_ID</code></td><td>Unique dbt run identifier</td></tr>
+            <tr><td><code>NODE_ID</code></td><td>dbt node (model.rs_medallion.DIM_EMPLOYEE)</td></tr>
+            <tr><td><code>STATUS</code></td><td>pass / warn / error / skipped</td></tr>
+            <tr><td><code>ROWS_AFFECTED</code></td><td>Row count from adapter response</td></tr>
+            <tr><td><code>EXECUTION_TIME</code></td><td>Seconds to execute</td></tr>
+            <tr><td><code>RUN_STARTED_AT</code></td><td>When the dbt run began</td></tr>
+            <tr><td><code>FAILURES</code></td><td>Count of test failures (for test nodes)</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ DATA FLOW ═══════════════════════ -->
+<section id="data-flow">
+    <h2>🔄 Data Flow Pipeline</h2>
+    <p>Every entity follows the same data flow pattern through the four layers:</p>
+
+    <div class="steps">
+        <div class="step"><div>
+            <strong>Source System → Staging</strong><br>
+            External process (ELT tool / ADF / Fivetran) lands raw data in <code>{SOURCE_DB}.STG.STG_{SOURCE}_{ENTITY}</code>
+        </div></div>
+        <div class="step"><div>
+            <strong>Staging → Bronze (ODS)</strong><br>
+            dbt <code>incremental</code> model loads from staging, deduplicates (pre-hook), adds hashes + audit columns, merges into ODS, marks deletes (post-hook)
+        </div></div>
+        <div class="step"><div>
+            <strong>Bronze → Silver (CDM)</strong><br>
+            dbt <code>incremental</code> model reads active ODS records, joins multiple sources, applies business naming and transformations, produces clean CDM entity
+        </div></div>
+        <div class="step"><div>
+            <strong>Silver → Gold (Dimensions)</strong><br>
+            dbt <code>scd_incremental</code> model reads CDM, detects changes via hash comparison, creates new SCD2 version rows, manages <code>EFF_DT</code> / <code>DISC_DT</code> / <code>IS_CURRENT</code>
+        </div></div>
+        <div class="step"><div>
+            <strong>Gold (Dim) → Gold (Facts)</strong> <em>(optional)</em><br>
+            dbt <code>table</code> model reads all dimension versions, uses <code>LAG()</code> to detect events, derives measures and flags
+        </div></div>
+        <div class="step"><div>
+            <strong>Audit Capture</strong><br>
+            <code>on-run-end</code> hook inserts execution metadata into the audit table
+        </div></div>
+    </div>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference: Employee Pipeline</span>
+        <h4>Full lineage path</h4>
+        <pre><code>WORKDAY.STG.STG_WORKDAY_EMPLOYEE ──→ WORKDAY.ODS.ODS_WORKDAY_EMPLOYEE ──┐
+EQAI.STG.STG_ES_EQAI_USERS ─────→ EQAI.ODS.ODS_ES_EQAI_USERS ────────┤
+                                                                        ├──→ CDM.WORKFORCE.EMPLOYEE
+                                                                        │         │
+                                                                        │         ▼
+                                                                        │    CORE.SHARED_DIMS.DIM_EMPLOYEE
+                                                                        │         │
+                                                                        │         ▼
+                                                                        │    CORE.WORKFORCE.FACT_EMPLOYEE_LIFECYCLE
+                                                                        │
+AUDIT.DBT_MONITORING.DBT_RUN_RESULTS ◄─── on-run-end hook</code></pre>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ SCD CONCEPTS ═══════════════════════ -->
+<section id="scd-concepts">
+    <h2>📚 SCD Type 1 vs Type 2</h2>
+    <p>Understanding when to use each SCD type is fundamental to the medallion architecture.</p>
+
+    <table class="tbl">
+        <thead><tr><th>Aspect</th><th>SCD Type 1 (Overwrite)</th><th>SCD Type 2 (Version)</th></tr></thead>
+        <tbody>
+            <tr><td>Strategy</td><td>Merge — update in place</td><td><code>scd+merge</code> — insert new version</td></tr>
+            <tr><td>History</td><td>No history kept</td><td>Full history with EFF_DT / DISC_DT</td></tr>
+            <tr><td>Use case</td><td>Bronze &amp; Silver layers (latest state)</td><td>Gold dimensions (audit trail)</td></tr>
+            <tr><td>Materialization</td><td><code>incremental</code></td><td><code>scd_incremental</code></td></tr>
+            <tr><td>Change detection</td><td><code>HASH_FULL</code> in merge_condition</td><td><code>DBT_HASH</code> (mapped from <code>HASH_CHANGE</code>)</td></tr>
+            <tr><td>Example layer</td><td>ODS_WORKDAY_EMPLOYEE, EMPLOYEE</td><td>DIM_EMPLOYEE</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout info">
+        <div class="callout-title">Two Hash Columns, Two Purposes</div>
+        <p><strong>HASH_CHANGE</strong> — Covers only the columns you want to track for SCD Type 2 versioning (e.g., job code, status, compensation). If this changes, a new dimension version is created.</p>
+        <p><strong>HASH_FULL</strong> — Covers all business columns. Used as the merge condition in Bronze/Silver to avoid unnecessary updates when no data has changed.</p>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ MATERIALIZATIONS ═══════════════════════ -->
+<section id="materializations">
+    <h2>⚙️ Materializations</h2>
+
+    <table class="tbl">
+        <thead><tr><th>Materialization</th><th>Used In</th><th>Behavior</th></tr></thead>
+        <tbody>
+            <tr><td><code>incremental</code> (merge)</td><td>Bronze, Silver</td><td>Standard dbt merge — inserts new rows, updates changed rows based on <code>unique_key</code> + <code>merge_condition</code></td></tr>
+            <tr><td><code>scd_incremental</code></td><td>Gold Dimensions</td><td>Custom materialization — extends merge with SCD2 logic: discontinues old version, inserts new version</td></tr>
+            <tr><td><code>table</code></td><td>Gold Facts</td><td>Full drop + recreate each run — appropriate for derived/computed tables</td></tr>
+            <tr><td><code>incremental</code></td><td>Audit</td><td>Append-only — never updates, only inserts new run results</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ INCREMENTAL STRATEGY ═══════════════════════ -->
+<section id="incremental-strategy">
+    <h2>📈 Incremental Strategy</h2>
+    <p>All incremental models use a <strong>watermark pattern</strong> with the <code>get_max_event_time()</code> macro:</p>
+
+    <pre><code>{% if is_incremental() %}
+WHERE METADATA_TIMESTAMP >= {{ get_max_event_time('METADATA_TIMESTAMP') }}
+{% endif %}</code></pre>
+
+    <p>This pulls only rows newer than the latest timestamp already in the target table, ensuring efficient incremental loads.</p>
+
+    <h3>Merge Condition</h3>
+    <p>The <code>merge_condition</code> config prevents unnecessary updates:</p>
+    <pre><code>merge_condition = 'DBT_INTERNAL_DEST.HASH_FULL <> DBT_INTERNAL_SOURCE.HASH_FULL'</code></pre>
+    <p>Even if a row is re-selected by the watermark filter, it won't be updated unless the data has actually changed.</p>
+
+    <div class="callout warning">
+        <div class="callout-title">Full Refresh</div>
+        <p>Use <code>--full-refresh</code> to drop and recreate incremental tables from scratch. This is needed after schema changes or when backfilling historical data.</p>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ HASH CDC ═══════════════════════ -->
+<section id="hash-cdc">
+    <h2>#️⃣ Hash-Based Change Data Capture</h2>
+    <p>Every layer uses MD5 hashes for change detection. This pattern is central to the framework:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Hash Column</th><th>Generated By</th><th>Contains</th><th>Used For</th></tr></thead>
+        <tbody>
+            <tr><td><code>HASH_CHANGE</code></td><td><code>generate_hash_change()</code></td><td>SCD Type 2 tracked columns only</td><td>Detecting attribute changes that should create a new dimension version</td></tr>
+            <tr><td><code>HASH_FULL</code></td><td><code>generate_hash_full()</code></td><td>All business columns</td><td>Merge condition — skip updates when nothing changed</td></tr>
+            <tr><td><code>DBT_HASH</code></td><td>Mapped from <code>HASH_CHANGE</code></td><td>Same as HASH_CHANGE</td><td>SCD engine — compared with <code>matched_condition</code></td></tr>
+        </tbody>
+    </table>
+
+    <h3>How the Hashes Flow</h3>
+    <pre><code>Bronze: HASH_CHANGE = MD5(type2_cols)   HASH_FULL = MD5(all_cols)
+  │                                         │
+  ▼                                         ▼
+Silver: HASH_CHANGE = MD5(type2_cols)  HASH_FULL = MD5(all_cols)
+  │
+  ▼
+Gold:   DBT_HASH = HASH_CHANGE  ← SCD engine compares this to detect version changes</code></pre>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ MACRO OVERVIEW ═══════════════════════ -->
+<section id="macro-overview">
+    <h2>🔧 Macro Catalog</h2>
+    <p>The framework provides a library of reusable macros organized into four categories:</p>
+
+    <table class="tbl">
+        <thead><tr><th>Category</th><th>Macro</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td rowspan="6"><strong>helpers/</strong></td><td><code>generate_surrogate_key(columns)</code></td><td>MD5 hash of concatenated columns → primary/surrogate key</td></tr>
+            <tr><td><code>generate_hash_change(columns)</code></td><td>MD5 of SCD2-tracked columns → change detection</td></tr>
+            <tr><td><code>generate_hash_full(columns)</code></td><td>MD5 of all business columns → merge condition</td></tr>
+            <tr><td><code>get_max_event_time(column)</code></td><td>Returns MAX(column) from target table → incremental watermark</td></tr>
+            <tr><td><code>trim_string(column)</code></td><td>TRIM + NULLIF(,'') → clean string values</td></tr>
+            <tr><td><code>get_last_query_id()</code></td><td>Returns Snowflake LAST_QUERY_ID for debugging</td></tr>
+            <tr><td rowspan="2"><strong>purge/</strong></td><td><code>purge_staging_duplicates_by_hash(...)</code></td><td>Pre-hook: deduplicates staging table by natural key + hash</td></tr>
+            <tr><td><code>mark_deleted_records(...)</code></td><td>Post-hook: sets DQ_ACTIVE_FLG='N' for records deleted from source</td></tr>
+            <tr><td rowspan="2"><strong>scd_engines/</strong></td><td><code>merge.sql</code></td><td>Core SCD2 merge logic — discontinue + insert new version</td></tr>
+            <tr><td><code>snowflake_merge.sql</code></td><td>Custom <code>scd_incremental</code> materialization wrapper</td></tr>
+            <tr><td rowspan="4"><strong>audit/</strong></td><td><code>audit()</code></td><td>on-run-start: creates audit table if not exists</td></tr>
+            <tr><td><code>capture_run_results()</code></td><td>on-run-end: inserts run metadata into audit table</td></tr>
+            <tr><td><code>generate_schema_name()</code></td><td>Routes models to correct Snowflake database.schema</td></tr>
+            <tr><td><code>get_audit_location()</code></td><td>Returns the fully qualified audit table reference</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ SCD ENGINE ═══════════════════════ -->
+<section id="scd-engine">
+    <h2>🔧 SCD Merge Engine — Deep Dive</h2>
+    <p>The custom <code>scd_incremental</code> materialization (<code>macros/scd_engines/</code>) implements the SCD2 merge in two files:</p>
+
+    <h3>snowflake_merge.sql (Materialization)</h3>
+    <p>Wraps the standard dbt incremental materialization with SCD-specific hooks. It calls <code>merge.sql</code> to generate the actual MERGE statement.</p>
+
+    <h3>merge.sql (MERGE Statement Builder)</h3>
+    <p>Generates a Snowflake MERGE with these clauses:</p>
+    <div class="card">
+        <ol>
+            <li><strong>WHEN MATCHED + changed:</strong> Update <code>IS_CURRENT = FALSE</code>, <code>DISC_DT = CURRENT_DATE</code> on the existing row</li>
+            <li><strong>WHEN MATCHED + unchanged:</strong> Update only audit timestamps (no new version)</li>
+            <li><strong>WHEN NOT MATCHED:</strong> Insert new row with <code>IS_CURRENT = TRUE</code>, <code>DISC_DT = '9999-12-31'</code></li>
+            <li><strong>Post-merge INSERT:</strong> For changed rows, insert a new version with fresh <code>EFF_DT</code> and <code>IS_CURRENT = TRUE</code></li>
+        </ol>
+    </div>
+
+    <h3>Config Parameters</h3>
+    <table class="tbl">
+        <thead><tr><th>Parameter</th><th>Purpose</th><th>Typical Value</th></tr></thead>
+        <tbody>
+            <tr><td><code>incremental_strategy</code></td><td>Activates SCD engine</td><td><code>'scd+merge'</code></td></tr>
+            <tr><td><code>timestamp_column</code></td><td>Audit timestamp for version ordering</td><td><code>'CORE_UPDATE_TIMESTAMP'</code></td></tr>
+            <tr><td><code>dest_columns</code></td><td>Columns managed by SCD engine (not from source)</td><td><code>['HASH_CHANGE','DBT_HASH','DISC_DT','IS_CURRENT']</code></td></tr>
+            <tr><td><code>merge_condition</code></td><td>Determines if data changed</td><td><code>'DBT_INTERNAL_DEST.DBT_HASH &lt;&gt; ...'</code></td></tr>
+            <tr><td><code>matched_condition</code></td><td>Targets only current version for update</td><td><code>'DBT_INTERNAL_DEST.IS_CURRENT = TRUE'</code></td></tr>
+        </tbody>
+    </table>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ HELPER MACROS ═══════════════════════ -->
+<section id="helper-macros">
+    <h2>🔧 Helper Macros — Usage Guide</h2>
+
+    <h3>generate_surrogate_key</h3>
+    <p>Creates an MD5 hash from one or more columns. Use for all primary and surrogate keys:</p>
+    <pre><code>-- Single column key
+{{ generate_surrogate_key(['EMPLOYEE_ID']) }} AS ODS_WORKDAY_EMPLOYEE_PK
+
+-- Composite key (dimension: natural key + effective date)
+{{ generate_surrogate_key(['EMPLOYEE_ID', 'EFF_DT']) }} AS EMPLOYEE_SK</code></pre>
+
+    <h3>generate_hash_change / generate_hash_full</h3>
+    <p>MD5 hashes for change detection. Pass a list of column names:</p>
+    <pre><code>-- Hash of SCD2-tracked columns only
+{{ generate_hash_change(['JOB_CD', 'STATUS', 'MANAGER_ID', 'COMPENSATION']) }} AS HASH_CHANGE
+
+-- Hash of ALL business columns
+{{ generate_hash_full(['COL_A', 'COL_B', 'COL_C', '...']) }} AS HASH_FULL</code></pre>
+
+    <h3>get_max_event_time</h3>
+    <p>Returns the MAX value of a timestamp column from the target table (for incremental watermark):</p>
+    <pre><code>{% if is_incremental() %}
+WHERE METADATA_TIMESTAMP >= {{ get_max_event_time('METADATA_TIMESTAMP') }}
+{% endif %}</code></pre>
+
+    <h3>trim_string</h3>
+    <p>Trims whitespace and converts empty strings to NULL:</p>
+    <pre><code>{{ trim_string('FIRST_NAME') }} AS FIRST_NAME</code></pre>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ PURGE MACROS ═══════════════════════ -->
+<section id="purge-macros">
+    <h2>🔧 Purge Macros — Usage Guide</h2>
+
+    <h3>purge_staging_duplicates_by_hash</h3>
+    <p>Used as a <strong>pre-hook</strong> on Bronze models. Removes duplicate rows from the staging table, keeping only the latest by hash:</p>
+    <pre><code>pre_hook = "{{ purge_staging_duplicates_by_hash(
+    '{SOURCE_DB}.STG.STG_{SOURCE}_{ENTITY}',   -- staging table
+    ['NATURAL_KEY_COL'],                         -- partition columns
+    'HASH_FULL'                                  -- hash column
+) }}"</code></pre>
+
+    <h3>mark_deleted_records</h3>
+    <p>Used as a <strong>post-hook</strong> on Bronze models. Soft-deletes records that exist in ODS but are no longer in staging:</p>
+    <pre><code>post_hook = "{{ mark_deleted_records(
+    this,                                        -- target ODS table
+    '{SOURCE_DB}.STG.STG_{SOURCE}_{ENTITY}',    -- staging table
+    ['NATURAL_KEY_COL'],                         -- join columns
+    'DQ_ACTIVE_FLG'                              -- flag column to set 'N'
+) }}"</code></pre>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ AUDIT MACROS ═══════════════════════ -->
+<section id="audit-macros">
+    <h2>🔧 Audit Macros — Usage Guide</h2>
+
+    <h3>audit()</h3>
+    <p>Called in <code>on-run-start</code>. Creates the audit monitoring table if it doesn't exist. No parameters needed — it uses <code>get_audit_location()</code> internally.</p>
+
+    <h3>capture_run_results()</h3>
+    <p>Called in <code>on-run-end</code>. Loops over dbt's <code>results</code> list and inserts one row per executed node into the audit table.</p>
+
+    <h3>generate_schema_name(custom_schema_name, node)</h3>
+    <p>Overrides dbt's default schema generation. When <code>custom_schema_name</code> is provided in config, it uses that directly (without prepending the target schema).</p>
+
+    <h3>get_audit_location()</h3>
+    <p>Returns the fully qualified table reference: <code>AUDIT.DBT_MONITORING.DBT_RUN_RESULTS</code>. Centralizes the audit table path.</p>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ TESTING FRAMEWORK ═══════════════════════ -->
+<section id="testing-framework">
+    <h2>🧪 Testing Strategy</h2>
+    <p>Every model must be tested at three levels: <strong>generic tests</strong> (in YAML), <strong>singular tests</strong> (SQL files), and
+       <strong>cross-layer reconciliation</strong>. The goal is to validate data integrity at every layer transition.</p>
+
+    <h3>Testing Checklist (Per Model)</h3>
+    <table class="tbl">
+        <thead><tr><th>Test Category</th><th>Bronze</th><th>Silver</th><th>Gold Dim</th><th>Gold Fact</th></tr></thead>
+        <tbody>
+            <tr><td>PK not null + unique</td><td>✅</td><td>✅</td><td>✅ (SK)</td><td>✅</td></tr>
+            <tr><td>Audit columns not null</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Hash columns not null</td><td>✅</td><td>✅</td><td>✅</td><td>—</td></tr>
+            <tr><td>Row count reconciliation</td><td>STG→ODS</td><td>ODS→CDM</td><td>CDM→Core</td><td>DIM→Fact</td></tr>
+            <tr><td>PK reconciliation</td><td>STG→ODS</td><td>ODS→CDM</td><td>CDM→Core</td><td>DIM→Fact</td></tr>
+            <tr><td>Domain-specific validations</td><td>Format checks</td><td>Format checks</td><td>SCD integrity</td><td>Event logic</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ GENERIC TESTS ═══════════════════════ -->
+<section id="generic-tests">
+    <h2>🧪 Generic Tests (Reusable)</h2>
+    <p>Located in <code>tests/generic/</code>. These are parameterized test macros applied via YAML. Use them in every model's schema YAML.</p>
+
+    <table class="tbl">
+        <thead><tr><th>Test</th><th>Purpose</th><th>Applicable Layers</th></tr></thead>
+        <tbody>
+            <tr><td><code>check_scd_integrity</code></td><td>Validates no overlapping date ranges per natural key in SCD2 dimensions</td><td>Gold Dim</td></tr>
+            <tr><td><code>check_is_current_flg</code></td><td>Ensures exactly one <code>IS_CURRENT = TRUE</code> row per natural key</td><td>Gold Dim</td></tr>
+            <tr><td><code>check_eff_dt_greater_than_disc_dt</code></td><td>EFF_DT must not exceed DISC_DT</td><td>Gold Dim</td></tr>
+            <tr><td><code>check_gaps_in_eff_disc_dt</code></td><td>No gaps between consecutive version date ranges</td><td>Gold Dim</td></tr>
+            <tr><td><code>check_duplicate_disc_dt_for_unique_key</code></td><td>No duplicate DISC_DT per natural key</td><td>Gold Dim</td></tr>
+            <tr><td><code>compare_row_counts</code></td><td>Row counts match between two models (± tolerance)</td><td>All cross-layer</td></tr>
+            <tr><td><code>compare_pk_stage_ods</code></td><td>All PKs from staging exist in ODS</td><td>Bronze</td></tr>
+            <tr><td><code>check_model_freshness</code></td><td>Model was updated within expected window</td><td>All</td></tr>
+            <tr><td><code>boolean_binary</code></td><td>Column contains only 0/1 or TRUE/FALSE</td><td>All</td></tr>
+            <tr><td><code>date_not_future</code></td><td>Date column ≤ CURRENT_DATE</td><td>All</td></tr>
+            <tr><td><code>email_format</code></td><td>Validates email pattern</td><td>Bronze, Silver</td></tr>
+            <tr><td><code>phone_format</code></td><td>Validates phone number format</td><td>Bronze, Silver</td></tr>
+            <tr><td><code>ein_format</code></td><td>Validates EIN format (XX-XXXXXXX)</td><td>Bronze, Silver</td></tr>
+            <tr><td><code>positive_values</code></td><td>Numeric column > 0</td><td>All</td></tr>
+            <tr><td><code>no_self_supervision</code></td><td>Employee ≠ their own manager</td><td>Domain-specific</td></tr>
+            <tr><td><code>middle_initial_format</code></td><td>Single character or NULL</td><td>Domain-specific</td></tr>
+            <tr><td><code>check_job_cd_change</code></td><td>Job code changes are valid transitions</td><td>Domain-specific</td></tr>
+        </tbody>
+    </table>
+
+    <h3>Applying Generic Tests in YAML</h3>
+    <pre><code># Example: schema YAML for any model
+models:
+  - name: DIM_{ENTITY}
+    columns:
+      - name: {ENTITY}_SK
+        tests:
+          - not_null
+          - unique
+      - name: HASH_CHANGE
+        tests:
+          - not_null
+      - name: IS_CURRENT
+        tests:
+          - boolean_binary
+          - check_is_current_flg:
+              unique_key: NATURAL_KEY
+              is_current_col: IS_CURRENT
+      - name: EFF_DT
+        tests:
+          - not_null
+          - check_scd_integrity:
+              unique_key: NATURAL_KEY
+              eff_dt_col: EFF_DT
+              disc_dt_col: DISC_DT</code></pre>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ SINGULAR TESTS ═══════════════════════ -->
+<section id="singular-tests">
+    <h2>🎯 Singular Tests (Per-Model)</h2>
+    <p>Located in <code>tests/singular/{model_name}/</code>. These are standalone SQL files that return failing rows.
+       Create them for cross-layer reconciliation and domain-specific business rules.</p>
+
+    <h3>Cross-Layer Reconciliation Pattern</h3>
+    <p>For every layer transition, create these three reconciliation tests:</p>
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>-- tests/singular/{model}/test_{model}_row_count.sql
+-- Validates row count consistency between layers
+SELECT
+    (SELECT COUNT(*) FROM {{ ref('SOURCE_MODEL') }}) AS source_count,
+    (SELECT COUNT(*) FROM {{ ref('TARGET_MODEL') }}) AS target_count
+WHERE source_count <> target_count</code></pre>
+    </div>
+
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>-- tests/singular/{model}/test_{model}_pk_reconciliation.sql
+-- Validates all PKs from source exist in target
+SELECT s.NATURAL_KEY
+FROM {{ ref('SOURCE_MODEL') }} s
+LEFT JOIN {{ ref('TARGET_MODEL') }} t
+    ON s.NATURAL_KEY = t.NATURAL_KEY
+WHERE t.NATURAL_KEY IS NULL</code></pre>
+    </div>
+
+    <div class="template-block">
+        <span class="template-badge">Template</span>
+        <pre><code>-- tests/singular/{model}/test_{model}_referential_integrity.sql
+-- Validates FK relationships between fact and dimension
+SELECT f.DIMENSION_KEY
+FROM {{ ref('FACT_TABLE') }} f
+LEFT JOIN {{ ref('DIM_TABLE') }} d
+    ON f.DIMENSION_KEY = d.NATURAL_KEY
+WHERE d.NATURAL_KEY IS NULL</code></pre>
+    </div>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference: Employee Singular Tests</span>
+        <h4>Tests in <code>tests/singular/</code></h4>
+        <ul>
+            <li><code>test_dim_employee_scd2_no_overlapping_dates</code> — SCD2 date range integrity</li>
+            <li><code>test_employee_row_count</code> — ODS → CDM row reconciliation</li>
+            <li><code>test_employee_pk_reconciliation</code> — PK exists in both layers</li>
+            <li><code>test_fact_employee_lifecycle_referential_integrity</code> — FACT → DIM FK check</li>
+            <li><code>test_fact_employee_lifecycle_event_type</code> — validates event types are valid</li>
+            <li><code>test_fact_employee_lifecycle_tenure_consistency</code> — tenure_days ≥ 0 logic</li>
+        </ul>
+    </div>
+
+    <h3>LLM-Assisted Test Generation</h3>
+    <div class="callout tip">
+        <div class="callout-title">💡 Automated Test Suite Generation</div>
+        <p>Use the LLM prompt template at <code>tests/automation/LLM_prompt.txt</code> to generate a comprehensive test suite for any new model.
+           Feed it the model SQL + schema YAML and it will produce generic test configs + singular test files covering all standard patterns.</p>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ DEV WORKFLOW ═══════════════════════ -->
+<section id="dev-workflow">
+    <h2>🛠️ Developer Workflow — Adding a New Entity</h2>
+    <p>Follow this step-by-step checklist when adding any new entity to the medallion architecture.
+       Each step builds on the previous one, and you should test at each layer before moving to the next.</p>
+
+    <div class="steps">
+        <div class="step"><div>
+            <strong>Define the Source</strong><br>
+            Create <code>models/1_bronze/{source}/z_{source}_sources.yml</code> defining the source database, schema, and table(s).
+            If the source system folder doesn't exist yet, create it.
+        </div></div>
+        <div class="step"><div>
+            <strong>Build the Bronze (ODS) Model</strong><br>
+            Create <code>models/1_bronze/{source}/ODS_{SOURCE}_{ENTITY}.sql</code> following the
+            <a href="#bronze-template">Bronze Template</a>. Include: surrogate key, hash columns, audit columns,
+            pre-hook (dedup), post-hook (soft-delete). Create the schema YAML with column docs and generic tests.
+            <br><em>Test: </em><code>dbt build --select ODS_{SOURCE}_{ENTITY}</code>
+        </div></div>
+        <div class="step"><div>
+            <strong>Build the Silver (CDM) Model</strong><br>
+            Create <code>models/2_silver/cdm/{domain}/{ENTITY}.sql</code> following the
+            <a href="#silver-template">Silver Template</a>. Join multiple Bronze sources if needed,
+            apply business naming, and generate fresh hash columns. Create schema YAML.
+            <br><em>Test: </em><code>dbt build --select {ENTITY}</code>
+        </div></div>
+        <div class="step"><div>
+            <strong>Build the Gold Dimension (SCD Type 2)</strong><br>
+            Create <code>models/3_gold/core/{sub_domain}/DIM_{ENTITY}.sql</code> following the
+            <a href="#gold-dim-template">Gold Dimension Template</a>. Use <code>scd_incremental</code>
+            materialization, map <code>HASH_CHANGE</code> → <code>DBT_HASH</code>,
+            add SCD2 metadata columns. Create schema YAML.
+            <br><em>Test: </em><code>dbt build --select DIM_{ENTITY}</code>
+        </div></div>
+        <div class="step"><div>
+            <strong>Build the Gold Fact Table (Optional)</strong><br>
+            Create <code>models/3_gold/core/{sub_domain}/FACT_{ENTITY}_{PROCESS}.sql</code> following the
+            <a href="#gold-fact-template">Gold Fact Template</a>. Use <code>LAG()</code> window functions
+            to detect events from dimension versions. Create schema YAML.
+            <br><em>Test: </em><code>dbt build --select FACT_{ENTITY}_{PROCESS}</code>
+        </div></div>
+        <div class="step"><div>
+            <strong>Add Cross-Layer Singular Tests</strong><br>
+            Create test files in <code>tests/singular/{model}/</code> for row count reconciliation,
+            PK reconciliation, and referential integrity. See <a href="#singular-tests">Singular Tests</a>.
+        </div></div>
+        <div class="step"><div>
+            <strong>Update dbt_project.yml</strong><br>
+            Add database/schema routing for the new source/domain under the appropriate layer.
+            See <a href="#architecture">Architecture → Database Routing</a>.
+        </div></div>
+        <div class="step"><div>
+            <strong>Run the Full Lineage</strong><br>
+            <code>dbt build --select +FACT_{ENTITY}_{PROCESS}</code><br>
+            The <code>+</code> prefix runs all upstream dependencies. Verify all models pass and all tests are green.
+        </div></div>
+    </div>
+
+    <div class="callout success">
+        <div class="callout-title">✅ Definition of Done</div>
+        <ul>
+            <li>All 4 layers built and passing (Bronze → Silver → Gold Dim → Gold Fact)</li>
+            <li>Schema YAML with column documentation and generic tests for each model</li>
+            <li>Singular tests for cross-layer reconciliation at every layer transition</li>
+            <li>SCD2 integrity tests on dimension (no overlapping dates, one current row per key)</li>
+            <li><code>dbt build --select +FACT_{ENTITY}_{PROCESS}</code> completes with 0 errors</li>
+            <li>Database routing configured in <code>dbt_project.yml</code></li>
+        </ul>
+    </div>
+</section>
+
+<hr>
+
+<!-- ═══════════════════════ RUNNING ═══════════════════════ -->
+<section id="running">
+    <h2>🚀 Running Builds</h2>
+
+    <h3>Common Commands</h3>
+    <pre><code># Build a full entity lineage (models + tests)
+dbt build --select +FACT_{ENTITY}_{PROCESS}
+
+# Run only models (no tests)
+dbt run --select +FACT_{ENTITY}_{PROCESS}
+
+# Run only tests
+dbt test --select +FACT_{ENTITY}_{PROCESS}
+
+# Full refresh (recreate tables from scratch)
+dbt build --select +FACT_{ENTITY}_{PROCESS} --full-refresh
+
+# Run a specific layer
+dbt build --select tag:bronze
+dbt build --select tag:silver
+dbt build --select tag:gold
+
+# Run a single model and its tests
+dbt build --select DIM_{ENTITY}
+
+# Run all models for a source
+dbt build --select tag:workday
+
+# Compile SQL without executing (for debugging)
+dbt compile --select DIM_{ENTITY}</code></pre>
+
+    <div class="ref-example">
+        <span class="ref-tag">Reference: Employee Pipeline Build</span>
+        <h4>Actual build command and output</h4>
+        <pre><code>$ dbt build --select +FACT_EMPLOYEE_LIFECYCLE
+
+# Result: 6 models + 72 tests + 3 hooks ≈ 79 nodes
+# PASS = 63 | WARN = 16 | ERROR = 0</code></pre>
+    </div>
+
+    <h3>What Happens During a Build</h3>
+    <table class="tbl">
+        <thead><tr><th>Phase</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>on-run-start</code></td><td>Create audit log table via <code>audit()</code> macro</td></tr>
+            <tr><td>Bronze Models</td><td>Incremental load from staging: pre-hook dedup → merge → post-hook delete detection</td></tr>
+            <tr><td>Bronze Tests</td><td>PK integrity, audit columns, format validations</td></tr>
+            <tr><td>Silver Model</td><td>Incremental load from ODS: multi-source join → transform → merge</td></tr>
+            <tr><td>Silver Tests</td><td>PK integrity, cross-layer reconciliation, business rules</td></tr>
+            <tr><td>Gold Dim</td><td>SCD2 merge: detect changes → discontinue old → insert new version</td></tr>
+            <tr><td>Gold Dim Tests</td><td>SCD integrity, one-current-per-key, date range validation</td></tr>
+            <tr><td>Gold Fact</td><td>Full rebuild: derive events from dimension versions</td></tr>
+            <tr><td>Gold Fact Tests</td><td>Event validation, referential integrity, measure consistency</td></tr>
+            <tr><td><code>on-run-end</code></td><td>Capture run results + grant permissions</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<footer>
+    <p>RS Medallion Developer Playbook · dbt Core 1.9 + Snowflake</p>
+    <p>Source: <a href="https://github.com/ananth-gade/RS_Medallion">github.com/ananth-gade/RS_Medallion</a></p>
+</footer>
+
+</main>
+</div>
+
+<!-- ===== Active nav highlighting ===== -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const links = document.querySelectorAll('.nav-link');
+    const sections = [];
+    links.forEach(link => {
+        const id = link.getAttribute('href')?.replace('#', '');
+        if (id) { const el = document.getElementById(id); if (el) sections.push({ el, link }); }
+    });
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                links.forEach(l => l.classList.remove('active'));
+                const match = sections.find(s => s.el === entry.target);
+                if (match) match.link.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+    sections.forEach(s => observer.observe(s.el));
+});
+</script>
+
+</body>
+</html>
