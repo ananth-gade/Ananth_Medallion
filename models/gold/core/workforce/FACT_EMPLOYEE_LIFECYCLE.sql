@@ -28,10 +28,10 @@ CTE_versioned as (
     -- Compare each SCD2 version to the previous version to detect lifecycle events
     select
         dim.*,
-        LAG(dim.JOB_CD)        over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_JOB_CODE,
-        LAG(dim.DIV_SK)        over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_DIVISION_NUMBER,
-        LAG(dim.SUPERVISOR)    over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_SUPERVISOR_EIN,
-        LAG(dim.EMP_STATUS)    over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_EMP_STATUS,
+        LAG(dim.JOB_CODE)          over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_JOB_CODE,
+        LAG(dim.DIVISION_NUMBER)   over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_DIVISION_NUMBER,
+        LAG(dim.SUPERVISOR_EIN)    over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_SUPERVISOR_EIN,
+        LAG(dim.EMPLOYEE_STATUS)   over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_EMP_STATUS,
         LAG(dim.EFF_DT)        over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_EVENT_DATE,
         ROW_NUMBER()           over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as VERSION_NUM
     from CTE_dim_employee dim
@@ -52,17 +52,17 @@ CTE_events as (
         cast(EFF_DT as date) as EVENT_DATE,
         case
             when VERSION_NUM = 1                                                then 'HIRE'
-            when UPPER(TRIM(EMP_STATUS)) in ('TERM', 'T') 
+            when UPPER(TRIM(EMPLOYEE_STATUS)) in ('TERM', 'T') 
                  and (PREV_EMP_STATUS is null or UPPER(TRIM(PREV_EMP_STATUS)) not in ('TERM', 'T'))
                                                                                 then 'TERMINATION'
-            when UPPER(TRIM(EMP_STATUS)) = 'LOA' 
+            when UPPER(TRIM(EMPLOYEE_STATUS)) = 'LOA' 
                  and (PREV_EMP_STATUS is null or UPPER(TRIM(PREV_EMP_STATUS)) != 'LOA')
                                                                                 then 'LOA'
             when UPPER(TRIM(PREV_EMP_STATUS)) = 'LOA' 
-                 and UPPER(TRIM(EMP_STATUS)) not in ('LOA', 'TERM', 'T')
+                 and UPPER(TRIM(EMPLOYEE_STATUS)) not in ('LOA', 'TERM', 'T')
                                                                                 then 'RETURN'
-            when DIV_SK != PREV_DIVISION_NUMBER                                 then 'ORG_TRANSFER'
-            when JOB_CD != PREV_JOB_CODE                                        then 'ROLE_CHANGE'
+            when DIVISION_NUMBER != PREV_DIVISION_NUMBER                        then 'ORG_TRANSFER'
+            when JOB_CODE != PREV_JOB_CODE                                      then 'ROLE_CHANGE'
             else 'PROFILE_UPDATE'
         end as EVENT_TYPE,
 
@@ -72,13 +72,13 @@ CTE_events as (
         cast(MONTH(EFF_DT) as integer) as EVENT_MONTH,
 
         -- Tenure Measures (calculated from hire date to event date)
-        cast(DATEDIFF('day', HIRE_DT, EFF_DT) as integer) as TENURE_DAYS,
-        cast(ROUND(DATEDIFF('day', HIRE_DT, EFF_DT) / 30.44, 1) as number(10,1)) as TENURE_MONTHS,
-        cast(ROUND(DATEDIFF('day', HIRE_DT, EFF_DT) / 365.25, 2) as number(10,2)) as TENURE_YEARS,
+        cast(DATEDIFF('day', HIRE_DATE, EFF_DT) as integer) as TENURE_DAYS,
+        cast(ROUND(DATEDIFF('day', HIRE_DATE, EFF_DT) / 30.44, 1) as number(10,1)) as TENURE_MONTHS,
+        cast(ROUND(DATEDIFF('day', HIRE_DATE, EFF_DT) / 365.25, 2) as number(10,2)) as TENURE_YEARS,
         case
-            when DATEDIFF('day', HIRE_DT, EFF_DT) < 365   then '<1 year'
-            when DATEDIFF('day', HIRE_DT, EFF_DT) < 1095  then '1-3 years'
-            when DATEDIFF('day', HIRE_DT, EFF_DT) < 1825  then '3-5 years'
+            when DATEDIFF('day', HIRE_DATE, EFF_DT) < 365   then '<1 year'
+            when DATEDIFF('day', HIRE_DATE, EFF_DT) < 1095  then '1-3 years'
+            when DATEDIFF('day', HIRE_DATE, EFF_DT) < 1825  then '3-5 years'
             else '5+ years'
         end as TENURE_BAND,
 
@@ -87,7 +87,7 @@ CTE_events as (
 
         -- Termination Flags & Details
         case
-            when UPPER(EMP_STATUS) in ('TERM', 'T')
+            when UPPER(EMPLOYEE_STATUS) in ('TERM', 'T')
                  and (PREV_EMP_STATUS is null or UPPER(PREV_EMP_STATUS) not in ('TERM', 'T'))
             then true
             else false
@@ -98,33 +98,33 @@ CTE_events as (
 
         -- Role Change Tracking
         cast(PREV_JOB_CODE as varchar(9)) as PREV_JOB_CODE,
-        cast(JOB_CD as varchar(9)) as NEW_JOB_CODE,
+        cast(JOB_CODE as varchar(9)) as NEW_JOB_CODE,
         case
-            when JOB_CD is not null and PREV_JOB_CODE is not null 
-                 and JOB_CD != PREV_JOB_CODE and JOB_CD > PREV_JOB_CODE
+            when JOB_CODE is not null and PREV_JOB_CODE is not null 
+                 and JOB_CODE != PREV_JOB_CODE and JOB_CODE > PREV_JOB_CODE
             then true
             else false
         end as IS_PROMOTION,
         case
-            when JOB_CD is not null and PREV_JOB_CODE is not null
-                 and JOB_CD != PREV_JOB_CODE and JOB_CD <= PREV_JOB_CODE
+            when JOB_CODE is not null and PREV_JOB_CODE is not null
+                 and JOB_CODE != PREV_JOB_CODE and JOB_CODE <= PREV_JOB_CODE
             then true
             else false
         end as IS_LATERAL,
 
         -- Org Transfer Tracking
         cast(PREV_DIVISION_NUMBER as integer) as PREV_DIVISION_NUMBER,
-        cast(DIV_SK as integer) as NEW_DIVISION_NUMBER,
+        cast(DIVISION_NUMBER as integer) as NEW_DIVISION_NUMBER,
         case
-            when DIV_SK is not null and PREV_DIVISION_NUMBER is not null
-                 and DIV_SK != PREV_DIVISION_NUMBER
+            when DIVISION_NUMBER is not null and PREV_DIVISION_NUMBER is not null
+                 and DIVISION_NUMBER != PREV_DIVISION_NUMBER
             then true
             else false
         end as IS_DIVISION_CHANGE,
 
         -- Supervisor Change Tracking
         cast(PREV_SUPERVISOR_EIN as varchar(15)) as PREV_SUPERVISOR_EIN,
-        cast(SUPERVISOR as varchar(15)) as NEW_SUPERVISOR_EIN,
+        cast(SUPERVISOR_EIN as varchar(15)) as NEW_SUPERVISOR_EIN,
         IS_DELETED as IS_RECORD_DELETED,
 
         -- Audit Fields

@@ -24,7 +24,7 @@ on-run-start:
 
 on-run-end:
   - "{{ capture_run_results() }}"
-  - "{{ grant_select_for_data_observability() }}"
+#  - "{{ grant_select_for_data_observability() }}"
 
 models:
     logging:

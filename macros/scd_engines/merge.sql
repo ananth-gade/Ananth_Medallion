@@ -94,6 +94,26 @@
       and DBT_INTERNAL_DEST.DBT_HASH <> DBT_INTERNAL_SOURCE.DBT_HASH 
       and DBT_INTERNAL_DEST.DISC_DT = to_date('9999-12-31');
 
+    -- Type 1: In-place overwrite of current records where only SCD1 columns changed
+    -- Activates when DBT_HASH (SCD2) matches but HASH_SCD1 differs
+    {%- set dest_col_names = dest_columns | map(attribute='name') | list -%}
+    {%- set has_hash_scd1 = 'HASH_SCD1' in dest_col_names -%}
+    {% if has_hash_scd1 %}
+    UPDATE {{ target }} DBT_INTERNAL_DEST
+    SET
+        {% for column_name in update_columns -%}
+            {{ column_name }} = DBT_INTERNAL_SOURCE.{{ column_name }}
+            {%- if not loop.last %}, {%- endif %}
+        {%- endfor %}
+    FROM (
+        SELECT * FROM {{ source }}
+    ) DBT_INTERNAL_SOURCE
+    WHERE DBT_INTERNAL_DEST.{{ unique_key }} = DBT_INTERNAL_SOURCE.{{ unique_key }}
+      AND DBT_INTERNAL_DEST.DISC_DT = to_date('9999-12-31')
+      AND DBT_INTERNAL_DEST."DBT_HASH" = DBT_INTERNAL_SOURCE."DBT_HASH"
+      AND DBT_INTERNAL_DEST."HASH_SCD1" <> DBT_INTERNAL_SOURCE."HASH_SCD1";
+    {% endif %}
+
     -- Type 6: Update only changed type6 columns for all records in target
     {% if changed_type6_columns and changed_type6_columns|length > 0 %}
         UPDATE {{ target }} hist
