@@ -21,7 +21,7 @@ with CTE_dim_employee as (
 ),
 CTE_audits as (
     select
-        TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')) as batch_id,
+        TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISSFF3')) as batch_id,
         CAST(CURRENT_TIMESTAMP AS TIMESTAMP_NTZ) as batch_timestamp
 ),
 CTE_versioned as (

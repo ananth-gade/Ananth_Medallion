@@ -49,7 +49,7 @@
     WHEN MATCHED
     AND (to_date(to_varchar(substring(DBT_INTERNAL_SOURCE.{{ timestamp_column }},1,8)),'yyyymmdd') = to_date(DBT_INTERNAL_DEST.EFF_DT) --> is this intra-day ?
     OR TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDD')) = substring(DBT_INTERNAL_DEST.INS_BATCH_ID,1,8))
-    AND DBT_INTERNAL_DEST.DBT_HASH <> DBT_INTERNAL_SOURCE.DBT_HASH --> new values in the fields camparsion
+    AND DBT_INTERNAL_DEST.HASH_SCD2 <> DBT_INTERNAL_SOURCE.HASH_SCD2 --> new values in the fields camparsion
     THEN UPDATE SET
         {% for column_name in update_columns -%}           
                 {% do log(column_name, info=True) %}
@@ -65,8 +65,8 @@
     values
         ({{ dest_cols_csv | replace('"EFF_DT"', "'1900-01-01'") }})
 
-    when not matched AND DBT_INTERNAL_SOURCE.DBT_HASH NOT IN 
-    (SELECT DBT_HASH FROM {{target}} DBT_INTERNAL_DEST 
+    when not matched AND DBT_INTERNAL_SOURCE.HASH_SCD2 NOT IN 
+    (SELECT HASH_SCD2 FROM {{target}} DBT_INTERNAL_DEST 
     WHERE DBT_INTERNAL_DEST.{{ unique_key }}  = DBT_INTERNAL_SOURCE.{{ unique_key }}
     and DBT_INTERNAL_DEST.DISC_DT = to_date('9999-12-31'))
     then insert
@@ -82,20 +82,21 @@
     UPDATE {{ target }} DBT_INTERNAL_DEST
     SET
     "DISC_DT" = CURRENT_DATE - 1,
-    "IS_CURRENT" = FALSE
+    "IS_CURRENT" = FALSE,
+    "UPD_BATCH_ID" = TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISSFF3'))
     FROM (
         SELECT
-            DBT_HASH,
+            HASH_SCD2,
             {{ unique_key }} 
         FROM
             {{ source }}
     ) DBT_INTERNAL_SOURCE
     where DBT_INTERNAL_DEST.{{ unique_key }}  = DBT_INTERNAL_SOURCE.{{ unique_key }}  
-      and DBT_INTERNAL_DEST.DBT_HASH <> DBT_INTERNAL_SOURCE.DBT_HASH 
+      and DBT_INTERNAL_DEST.HASH_SCD2 <> DBT_INTERNAL_SOURCE.HASH_SCD2 
       and DBT_INTERNAL_DEST.DISC_DT = to_date('9999-12-31');
 
     -- Type 1: In-place overwrite of current records where only SCD1 columns changed
-    -- Activates when DBT_HASH (SCD2) matches but HASH_SCD1 differs
+    -- Activates when HASH_SCD2 matches but HASH_SCD1 differs
     {%- set dest_col_names = dest_columns | map(attribute='name') | list -%}
     {%- set has_hash_scd1 = 'HASH_SCD1' in dest_col_names -%}
     {% if has_hash_scd1 %}
@@ -110,7 +111,7 @@
     ) DBT_INTERNAL_SOURCE
     WHERE DBT_INTERNAL_DEST.{{ unique_key }} = DBT_INTERNAL_SOURCE.{{ unique_key }}
       AND DBT_INTERNAL_DEST.DISC_DT = to_date('9999-12-31')
-      AND DBT_INTERNAL_DEST."DBT_HASH" = DBT_INTERNAL_SOURCE."DBT_HASH"
+      AND DBT_INTERNAL_DEST."HASH_SCD2" = DBT_INTERNAL_SOURCE."HASH_SCD2"
       AND DBT_INTERNAL_DEST."HASH_SCD1" <> DBT_INTERNAL_SOURCE."HASH_SCD1";
     {% endif %}
 

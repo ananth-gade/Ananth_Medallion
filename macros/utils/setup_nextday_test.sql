@@ -25,8 +25,8 @@
     {% do run_query(reset_dim_scd1) %}
     {{ log("=== Step 1: Reset DIM records to original values + backdated EFF_DT to 2026-04-01", info=True) }}
 
-    -- Step 2: Also need to recalculate the DBT_HASH in DIM to match old values
-    -- The scd+merge engine compares DBT_HASH. Since we reset the DIM values,
+    -- Step 2: Also need to recalculate the HASH_SCD2 in DIM to match old values
+    -- The scd+merge engine compares HASH_SCD2. Since we reset the DIM values,
     -- the hash in DIM is stale. We need the merge to see a hash MISMATCH.
     -- The model will recompute hashes from source, so we just need source to have new values.
 
@@ -52,7 +52,7 @@
 
     -- Verify
     {% set v_dim %}
-        select EMPLOYEE_EIN, JOB_CODE, ADDRESS_LINE_1, EFF_DT, DBT_HASH
+        select EMPLOYEE_EIN, JOB_CODE, ADDRESS_LINE_1, EFF_DT, HASH_SCD2
         from CORE.SHARED_DIMS.DIM_EMPLOYEE
         where EMPLOYEE_EIN in ('100071494', '719074411')
     {% endset %}

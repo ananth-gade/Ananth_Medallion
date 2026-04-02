@@ -12,7 +12,7 @@
         incremental_strategy='scd+merge',
         timestamp_column='INS_BATCH_ID',
         post_hook=[
-            "update {{ this }} as tgt\nset\n    IS_DELETED = TRUE,\n    UPD_BATCH_ID = TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS'))\nwhere tgt.IS_DELETED = FALSE\n  and exists (\n    select 1\n    from {{ ref('EMPLOYEE') }} src\n    where src.EMPLOYEE_EIN = tgt.EMPLOYEE_EIN\n      and src.IS_DELETED = TRUE\n  )"
+            "update {{ this }} as tgt\nset\n    IS_DELETED = TRUE,\n    UPD_BATCH_ID = TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISSFF3'))\nwhere tgt.IS_DELETED = FALSE\n  and exists (\n    select 1\n    from {{ ref('EMPLOYEE') }} src\n    where src.EMPLOYEE_EIN = tgt.EMPLOYEE_EIN\n      and src.IS_DELETED = TRUE\n  )"
         ],
         tags=["gold","workday","workforce","core-dims","data-observe"]
     )
@@ -27,7 +27,7 @@ with CTE_source as (
 ),
 CTE_audits as (
     select
-        TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISS')) as batch_id,
+        TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISSFF3')) as batch_id,
         CAST(CURRENT_TIMESTAMP AS TIMESTAMP_NTZ) as batch_timestamp
 ),
 CTE_transformed as (
@@ -141,8 +141,6 @@ CTE_hashed as (
 ),
 CTE_final as (
     select
-        -- Alias HASH_SCD2 as DBT_HASH for the scd+merge engine compatibility
-        HASH_SCD2 as DBT_HASH,
         *
     from CTE_hashed
 )

@@ -324,11 +324,6 @@ models:
         description: CDM LAYER UPDATE TIMESTAMP
         meta:
           audit_column: true
-      - name: DBT_HASH
-        data_type: varchar(32)
-        description: ALIAS OF HASH_SCD2 - USED BY SCD+MERGE ENGINE FOR CHANGE DETECTION
-        meta:
-          audit_column: true
       - name: HASH_SCD2
         data_type: varchar(32)
         description: MD5 OF SCD2-TRACKED COLUMNS (job, position, status, hierarchy)

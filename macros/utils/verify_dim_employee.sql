@@ -14,7 +14,6 @@
             count(case when HASH_SCD2 is not null then 1 end) as scd2_cnt,
             count(case when HASH_SCD1 is not null then 1 end) as scd1_cnt,
             count(case when HASH_FULL is not null then 1 end) as full_cnt,
-            count(case when DBT_HASH is not null then 1 end) as dbt_hash_cnt,
             count(case when IS_CURRENT = true then 1 end) as current_cnt
         from CORE.SHARED_DIMS.DIM_EMPLOYEE
     {% endset %}
@@ -22,8 +21,7 @@
     {{ log("=== HASH_SCD2 populated: " ~ r.columns[0][0], info=True) }}
     {{ log("=== HASH_SCD1 populated: " ~ r.columns[1][0], info=True) }}
     {{ log("=== HASH_FULL populated: " ~ r.columns[2][0], info=True) }}
-    {{ log("=== DBT_HASH populated:  " ~ r.columns[3][0], info=True) }}
-    {{ log("=== IS_CURRENT=true:     " ~ r.columns[4][0], info=True) }}
+    {{ log("=== IS_CURRENT=true:     " ~ r.columns[3][0], info=True) }}
 
     {% set sample_query %}
         select EMPLOYEE_EIN, LAST_NAME, FIRST_NAME, JOB_CODE, ADDRESS_LINE_1, CITY, STATE
