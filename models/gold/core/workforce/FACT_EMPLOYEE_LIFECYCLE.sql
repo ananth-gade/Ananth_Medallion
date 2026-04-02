@@ -35,7 +35,6 @@ CTE_versioned as (
         LAG(dim.EFF_DT)        over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as PREV_EVENT_DATE,
         ROW_NUMBER()           over (partition by dim.EMPLOYEE_EIN order by dim.EFF_DT) as VERSION_NUM
     from CTE_dim_employee dim
-    where dim.IS_DELETED = false
 ),
 CTE_events as (
     select
@@ -125,12 +124,44 @@ CTE_events as (
         -- Supervisor Change Tracking
         cast(PREV_SUPERVISOR_EIN as varchar(15)) as PREV_SUPERVISOR_EIN,
         cast(SUPERVISOR_EIN as varchar(15)) as NEW_SUPERVISOR_EIN,
-        IS_DELETED as IS_RECORD_DELETED,
+
+        -- Data Quality
+        cast(
+            case
+                when EMPLOYEE_EIN is not null and EFF_DT is not null and EMPLOYEE_SK is not null
+                    then 100.00
+                else 0.00
+            end as decimal(5,2)
+        ) as DQ_SCORE,
+        cast(
+            case
+                when EMPLOYEE_EIN is not null and EFF_DT is not null and EMPLOYEE_SK is not null
+                    then 'PASSED'
+                else 'FAILED'
+            end as varchar(20)
+        ) as DQ_STATUS,
 
         -- Audit Fields
-        cast(SOURCE_SYSTEM as varchar(20)) as SOURCE_SYSTEM,
-        CTE_audits.batch_timestamp as LOAD_TIMESTAMP,
-        CTE_audits.batch_id as LOAD_BATCH_ID
+        cast(CTE_audits.batch_id as number(18,0))  as INS_BATCH_ID,
+        cast(CTE_audits.batch_id as number(18,0))  as UPD_BATCH_ID,
+        cast(SOURCE_SYSTEM as varchar(20))          as SOURCE_SYSTEM,
+        cast('DIM_EMPLOYEE' as varchar(50))         as PRIMARY_DATA_SOURCE,
+        cast(CTE_audits.batch_timestamp as timestamp_ntz(9)) as CDM_INSERT_TIMESTAMP,
+        cast(CTE_audits.batch_timestamp as timestamp_ntz(9)) as CDM_UPDATE_TIMESTAMP,
+
+        -- Hash Columns
+        {{ generate_hash_change([
+            'EMPLOYEE_EIN', 'EFF_DT', 'JOB_CODE', 'DIVISION_NUMBER',
+            'SUPERVISOR_EIN', 'EMPLOYEE_STATUS'
+        ]) }} as HASH_CHANGE,
+        {{ generate_hash_full([
+            'EMPLOYEE_EIN', 'EFF_DT', 'EMPLOYEE_SK', 'JOB_CODE',
+            'DIVISION_NUMBER', 'SUPERVISOR_EIN', 'EMPLOYEE_STATUS',
+            'HIRE_DATE'
+        ]) }} as HASH_FULL,
+
+        -- Operation Type
+        cast('INSERT' as varchar(10))               as OPERATION_TYPE
 
     from CTE_versioned
     cross join CTE_audits
