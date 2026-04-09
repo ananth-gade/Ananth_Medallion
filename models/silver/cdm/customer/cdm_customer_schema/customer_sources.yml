@@ -1,0 +1,55 @@
+version: 2
+
+sources:
+  - name: workday_ods
+    database: WORKDAY
+    schema: ODS
+    description: "Workday ODS – CUSTOMER and CUSTOMER_ADDRESS source tables"
+    tables:
+      - name: CUSTOMER
+        description: "Customer master table from Workday ODS"
+        columns:
+          - name: CUSTOMER_ID
+            description: "Primary key – unique customer identifier"
+          - name: FIRST_NAME
+            description: "Customer first name"
+          - name: LAST_NAME
+            description: "Customer last name"
+          - name: EMAIL
+            description: "Customer email address"
+          - name: PHONE
+            description: "Customer phone number"
+          - name: DATE_OF_BIRTH
+            description: "Customer date of birth"
+          - name: CREATED_AT
+            description: "Timestamp when the customer record was created"
+          - name: UPDATED_AT
+            description: "Timestamp when the customer record was last updated"
+
+      - name: CUSTOMER_ADDRESS
+        description: "Customer address table from Workday ODS"
+        columns:
+          - name: ADDRESS_ID
+            description: "Primary key – unique address identifier"
+          - name: CUSTOMER_ID
+            description: "Foreign key to CUSTOMER table"
+          - name: ADDRESS_TYPE
+            description: "Type of address (HOME, WORK, BILLING, SHIPPING)"
+          - name: ADDRESS_LINE_1
+            description: "Street address line 1"
+          - name: ADDRESS_LINE_2
+            description: "Street address line 2 (optional)"
+          - name: CITY
+            description: "City"
+          - name: STATE
+            description: "State or province code"
+          - name: ZIP_CODE
+            description: "ZIP / postal code"
+          - name: COUNTRY
+            description: "Country code"
+          - name: IS_PRIMARY
+            description: "Whether this is the customer's primary address"
+          - name: CREATED_AT
+            description: "Timestamp when the address record was created"
+          - name: UPDATED_AT
+            description: "Timestamp when the address record was last updated"

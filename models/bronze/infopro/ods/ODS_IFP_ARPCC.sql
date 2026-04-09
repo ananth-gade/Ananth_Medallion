@@ -1,0 +1,410 @@
+{{
+        config(
+                materialized='incremental',
+                unique_key='ODS_IFP_ARPCC_PK',
+                merge_no_update_columns = ['ODS_INS_BATCH_ID','ODS_INSERT_TIMESTAMP','SRC_CREATE_DTM'],
+                merge_condition="DBT_INTERNAL_SOURCE.HASH_CHANGE != DBT_INTERNAL_DEST.HASH_CHANGE",
+                tags=["ods","infopro","scheduled-every30min","data-observe"],
+                pre_hook=" {% if is_incremental() %}
+                        EXECUTE IMMEDIATE $$
+                                 BEGIN
+                                 IF (EXISTS(SELECT  * FROM {{ this.database }}.information_schema.tables WHERE table_schema = UPPER('{{ this.schema }}') AND table_name = UPPER('{{ this.identifier }}'))) THEN
+                                 UPDATE {{ this }}
+                                 SET SRC_ACTION_CD='D',
+                                     SRC_DEL_IND='Y',
+                                     SRC_LAST_UPDATE_DTM=CURRENT_TIMESTAMP,
+                                     ODS_UPD_BATCH_ID=TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP,'YYYYMMDDHH24MISSFF3')),
+                                     ODS_UPDATE_TIMESTAMP=CURRENT_TIMESTAMP,
+                                     OPERATION_TYPE='DELETE'
+                                 WHERE ODS_IFP_ARPCC_PK IN (
+                                     SELECT {{ generate_surrogate_key([trim_string('DTL__BI_CCCO'),trim_string('DTL__BI_CCCUNO')]) }}
+                                     FROM {{ source('STAGING','STG_IFP_ARPCC') }}
+                                     WHERE PRIMARY_KEY_CHANGE='Y'
+                                     AND to_timestamp_tz(SUBSTRING(DTL__CAPXTIMESTAMP,1,17),'YYYYMMDDHHMISSFF') >= '{{ get_max_event_time('SRC_LAST_UPDATE_DTM') }}'
+                                 );
+                                 COMMIT;
+                                 END IF;
+                                END;
+                                $$;
+                        {% endif %}"
+        )
+}}
+
+--> Grab all the records newer than last update
+WITH CTE_BATCH_ID AS (
+    SELECT TO_NUMBER(TO_VARCHAR(CURRENT_TIMESTAMP, 'YYYYMMDDHH24MISSFF3')) AS BATCH_ID,
+    CAST(CURRENT_TIMESTAMP AS TIMESTAMP_NTZ)  AS BATCH_TIMESTAMP
+)
+
+{% if is_incremental() %}
+,CTE_SOURCE_RECORDS AS (
+        SELECT * FROM {{ source('STAGING','STG_IFP_ARPCC') }}
+        where
+        -- this filter will only be applied on an incremental run
+        to_timestamp_tz(SUBSTRING(TRIM(DTL__CAPXTIMESTAMP),1,17),'YYYYMMDDHHMISSFF')  >= '{{ get_max_event_time('SRC_LAST_UPDATE_DTM') }}'
+)
+
+,CTE_DEDUP as (
+  select *, ROW_NUMBER() OVER(PARTITION BY CCCO, CCCUNO ORDER BY DTL__CAPXTIMESTAMP DESC) AS ROW_NUM
+  from CTE_SOURCE_RECORDS
+  qualify ROW_NUM=1
+)
+
+,CTE_TEMP as (
+select CTE_SOURCE_RECORDS.DTL__BI_CCCO, CTE_SOURCE_RECORDS.DTL__BI_CCCUNO from 
+CTE_SOURCE_RECORDS LEFT JOIN CTE_DEDUP 
+ ON CTE_SOURCE_RECORDS.DTL__BI_CCCO=CTE_DEDUP.CCCO
+ AND CTE_SOURCE_RECORDS.DTL__BI_CCCUNO=CTE_DEDUP.CCCUNO
+ where CTE_SOURCE_RECORDS.PRIMARY_KEY_CHANGE  = 'Y'
+AND (TO_NUMBER(CTE_SOURCE_RECORDS.PK_LZ_IFP_ARPCC_ID) >=  TO_NUMBER(CTE_DEDUP.PK_LZ_IFP_ARPCC_ID) OR TO_NUMBER(CTE_DEDUP.PK_LZ_IFP_ARPCC_ID) IS NULL)
+)
+
+,CTE_FINAL as (
+select * from CTE_DEDUP where CONCAT_WS(',',CCCO,CCCUNO) in (
+select CONCAT_WS(',',CCCO,CCCUNO) from CTE_DEDUP
+except 
+select CONCAT_WS(',',DTL__BI_CCCO,DTL__BI_CCCUNO) from CTE_TEMP)
+)
+
+,--> Current Delta data capture from STG table
+CTE_TRANSFORMED AS (
+SELECT
+        {{ generate_surrogate_key([trim_string('CCCO'),trim_string('CCCUNO')])}} as ODS_IFP_ARPCC_PK,
+        CAST(CONCAT({{ trim_string('CCCO')}},'-',{{ trim_string('CCCUNO')}}) AS VARCHAR(50)) AS ODS_IFP_ARPCC_COMPOSITE_KEY,
+        STG_IFP_ARPCC_PK,
+        {{ trim_string('DTL__CAPXUSER')}} AS SRC_CDC_LIB,
+        {{ trim_string('CCCO')}} AS CCCO,
+        {{ trim_string('CCCUNO')}} AS CCCUNO,
+        {{ trim_string('CCCRPC')}} AS CCCRPC,
+        {{ trim_string('CCCRPP')}} AS CCCRPP,
+        CCCRPH,
+        {{ trim_string('CCCRPE')}} AS CCCRPE,
+        CCCRP8 AS CCCRP8_ORIG,
+        {{ DateCheck_1940('CCCRP8') }} AS CCCRP8,
+        {{ trim_string('CCCRDM')}} AS CCCRDM,
+        {{ trim_string('CCCOLM')}} AS CCCOLM,
+        {{ trim_string('CCRISK')}} AS CCRISK,
+        {{ trim_string('CCRVPC')}} AS CCRVPC,
+        CCRVDH,
+        {{ trim_string('CCRVDE')}} AS CCRVDE,
+        CCRVD8 AS CCRVD8_ORIG,
+        {{ DateCheck_1940('CCRVD8') }} AS CCRVD8,
+        {{ trim_string('CCDLPC')}} AS CCDLPC,
+        {{ trim_string('CCDLCC')}} AS CCDLCC,
+        CCDLDH,
+        {{ trim_string('CCDLDE')}} AS CCDLDE,
+        CCDLD8 AS CCDLD8_ORIG,
+        {{ DateCheck_1940('CCDLD8') }} AS CCDLD8,
+        {{ trim_string('CCDPPC')}} AS CCDPPC,
+        {{ trim_string('CCUFL1')}} AS CCUFL1,
+        {{ trim_string('CCUFL2')}} AS CCUFL2,
+        CCUAM1,
+        CCUAM2,
+        CCUC1H,
+        {{ trim_string('CCUC1E')}} AS CCUC1E,
+        CCUC18 AS CCUC18_ORIG,
+        {{ DateCheck_1940('CCUC18') }} AS CCUC18,
+        CCUC2H,
+        {{ trim_string('CCUC2E')}} AS CCUC2E,
+        CCUC28 AS CCUC28_ORIG,
+        {{ DateCheck_1940('CCUC28') }} AS CCUC28,
+        CCSICC,
+        {{ trim_string('CCDBR')}} AS CCDBR,
+        {{ trim_string('CCDBPN')}} AS CCDBPN,
+        {{ trim_string('CCDBST')}} AS CCDBST,
+        CCDBRH,
+        {{ trim_string('CCDBRE')}} AS CCDBRE,
+        CCDBR8 AS CCDBR8_ORIG,
+        {{ DateCheck_1940('CCDBR8') }} AS CCDBR8,
+        {{ trim_string('CCDBRP')}} AS CCDBRP,
+        CCDBPH,
+        {{ trim_string('CCDBPE')}} AS CCDBPE,
+        CCDBP8 AS CCDBP8_ORIG,
+        {{ DateCheck_1940('CCDBP8') }} AS CCDBP8,
+        CCDUNS,
+        {{ trim_string('CCTTPT')}} AS CCTTPT,
+        {{ trim_string('CCORAC')}} AS CCORAC,
+        CCCLXH,
+        {{ trim_string('CCCLXE')}} AS CCCLXE,
+        CCCLX8 AS CCCLX8_ORIG,
+        {{ DateCheck_1940('CCCLX8') }} AS CCCLX8,
+        CCLCXH,
+        {{ trim_string('CCLCXE')}} AS CCLCXE,
+        CCLCX8 AS CCLCX8_ORIG,
+        {{ DateCheck_1940('CCLCX8') }} AS CCLCX8,
+        CCUCXH,
+        {{ trim_string('CCUCXE')}} AS CCUCXE,
+        CCUCX8 AS CCUCX8_ORIG,
+        {{ DateCheck_1940('CCUCX8') }} AS CCUCX8,
+        CCAULH,
+        {{ trim_string('CCAULE')}} AS CCAULE,
+        CCAUL8 AS CCAUL8_ORIG,
+        {{ DateCheck_1940('CCAUL8') }} AS CCAUL8,
+        CCAURH,
+        {{ trim_string('CCAURE')}} AS CCAURE,
+        CCAUR8 AS CCAUR8_ORIG,
+        {{ DateCheck_1940('CCAUR8') }} AS CCAUR8,
+        CCAUVA,
+        {{ trim_string('CCAUCR')}} AS CCAUCR,
+        {{ trim_string('CCCRCN')}} AS CCCRCN,
+        {{ trim_string('CCCRCT')}} AS CCCRCT,
+        {{ trim_string('CCCRCP')}} AS CCCRCP,
+        {{ trim_string('CCCRCF')}} AS CCCRCF,
+        {{ trim_string('CCAPCN')}} AS CCAPCN,
+        {{ trim_string('CCAPCT')}} AS CCAPCT,
+        {{ trim_string('CCAPCP')}} AS CCAPCP,
+        {{ trim_string('CCAPCF')}} AS CCAPCF,
+        {{ trim_string('CCCOCN')}} AS CCCOCN,
+        {{ trim_string('CCCOCT')}} AS CCCOCT,
+        {{ trim_string('CCCOCP')}} AS CCCOCP,
+        {{ trim_string('CCCOCF')}} AS CCCOCF,
+        CCUBAL,
+        CCCBAL,
+        CCOCNT,
+        CCOOR1,
+        CCOOR2,
+        CCOOR3,
+        CCOOR4,
+        CCOOR5,
+        CCOOR6,
+        CCFCR1,
+        CCFCR2,
+        CCFCR3,
+        CCFCR4,
+        CCFCR5,
+        CCFCR6,
+        {{ trim_string('CCMSG1')}} AS CCMSG1,
+        {{ trim_string('CCMSG2')}} AS CCMSG2,
+        CCFIXH,
+        {{ trim_string('CCFIXE')}} AS CCFIXE,
+        CCFIX8 AS CCFIX8_ORIG,
+        {{ DateCheck_1940('CCFIX8') }} AS CCFIX8,
+        CCLSDH,
+        {{ trim_string('CCLSDE')}} AS CCLSDE,
+        CCLSD8 AS CCLSD8_ORIG,
+        {{ DateCheck_1940('CCLSD8') }} AS CCLSD8,
+        CCOPNH,
+        {{ trim_string('CCOPNE')}} AS CCOPNE,
+        CCOPN8 AS CCOPN8_ORIG,
+        {{ DateCheck_1940('CCOPN8') }} AS CCOPN8,
+        CCACDH,
+        {{ trim_string('CCACDE')}} AS CCACDE,
+        CCACD8 AS CCACD8_ORIG,
+        {{ DateCheck_1940_HighDate('CCACD8') }} AS CCACD8,
+        CCFSLH,
+        {{ trim_string('CCFSLE')}} AS CCFSLE,
+        CCFSL8 AS CCFSL8_ORIG,
+        {{ DateCheck_1940('CCFSL8') }} AS CCFSL8,
+        CCLSLH,
+        {{ trim_string('CCLSLE')}} AS CCLSLE,
+        CCLSL8 AS CCLSL8_ORIG,
+        {{ DateCheck_1940('CCLSL8') }} AS CCLSL8,
+        CCLSLA,
+        CCLCNR,
+        CCLCAH,
+        {{ trim_string('CCLCAE')}} AS CCLCAE,
+        CCLCA8 AS CCLCA8_ORIG,
+        {{ DateCheck_1940('CCLCA8') }} AS CCLCA8,
+        CCLCAA,
+        CCPCNR,
+        CCPCAH,
+        {{ trim_string('CCPCAE')}} AS CCPCAE,
+        CCPCA8 AS CCPCA8_ORIG,
+        {{ DateCheck_1940('CCPCA8') }} AS CCPCA8,
+        CCPCAA,
+        CAST(CONCAT({{ trim_string('CCCO')}},'-',{{ trim_string('CCCUNO')}}) AS VARCHAR(50)) AS ACCOUNT_COMPOSITE_KEY,
+        CAST(SOURCE_SYSTEM AS VARCHAR(50)) AS SOURCE_SYSTEM,
+        CAST('STG_IFP_ARPCC' AS VARCHAR(200)) AS SOURCE_TABLE,
+        to_timestamp_ntz(to_timestamp_tz(SUBSTRING(TRIM(DTL__CAPXTIMESTAMP),1,17),'YYYYMMDDHHMISSFF')) AS SRC_CREATE_DTM,
+        to_timestamp_ntz(to_timestamp_tz(SUBSTRING(TRIM(DTL__CAPXTIMESTAMP),1,17),'YYYYMMDDHHMISSFF')) AS SRC_LAST_UPDATE_DTM,
+        TRIM(DTL__CAPXACTION) AS SRC_ACTION_CD,
+        CASE WHEN TRIM(DTL__CAPXACTION) = 'D' THEN 'Y' ELSE 'N' END AS SRC_DEL_IND,
+        CAST(BATCH_ID AS BIGINT) AS ODS_INS_BATCH_ID,
+        CAST(BATCH_ID AS BIGINT) AS ODS_UPD_BATCH_ID,
+        CAST(BATCH_TIMESTAMP AS TIMESTAMP_NTZ) AS ODS_INSERT_TIMESTAMP,
+        CAST(BATCH_TIMESTAMP AS TIMESTAMP_NTZ) AS ODS_UPDATE_TIMESTAMP,
+        CAST(STG_INSERT_TIMESTAMP AS TIMESTAMP_NTZ) AS STG_INSERT_TIMESTAMP,
+        CASE WHEN SRC_DEL_IND = 'Y' THEN 'DELETE' ELSE 'INSERT' END AS OPERATION_TYPE,
+        CAST(NULL AS VARCHAR(20)) AS DQ_STATUS,
+        CAST(NULL AS VARCHAR(50)) AS DQ_ERROR_CODE,
+        CAST(NULL AS VARCHAR(500)) AS DQ_ERROR_MESSAGE
+from CTE_FINAL
+LEFT JOIN CTE_BATCH_ID ON 1=1
+)
+
+{% else %}
+,CTE_HISTORICAL AS (
+SELECT
+        {{ generate_surrogate_key([trim_string('CCCO'),trim_string('CCCUNO')]) }} AS ODS_IFP_ARPCC_PK,
+        CAST(CONCAT({{ trim_string('CCCO')}},'-',{{ trim_string('CCCUNO')}}) AS VARCHAR(50)) AS ODS_IFP_ARPCC_COMPOSITE_KEY,
+        CAST(NULL AS NUMBER) AS STG_IFP_ARPCC_PK,
+        {{ trim_string('SYS_CDC_LIB') }} AS SRC_CDC_LIB,
+        {{ trim_string('CCCO')}} AS CCCO,
+        {{ trim_string('CCCUNO')}} AS CCCUNO,
+        {{ trim_string('CCCRPC')}} AS CCCRPC,
+        {{ trim_string('CCCRPP')}} AS CCCRPP,
+        CAST(CCCRPH AS NUMBER(10,0)) AS CCCRPH,
+        {{ trim_string('CCCRPE')}} AS CCCRPE,
+        CAST(CCCRP8_ORIG AS NUMBER(10,0)) AS CCCRP8_ORIG,
+        CAST(CCCRP8 AS TIMESTAMP_NTZ(7)) AS CCCRP8,
+        {{ trim_string('CCCRDM')}} AS CCCRDM,
+        {{ trim_string('CCCOLM')}} AS CCCOLM,
+        {{ trim_string('CCRISK')}} AS CCRISK,
+        {{ trim_string('CCRVPC')}} AS CCRVPC,
+        CAST(CCRVDH AS NUMBER(10,0)) AS CCRVDH,
+        {{ trim_string('CCRVDE')}} AS CCRVDE,
+        CAST(CCRVD8_ORIG AS NUMBER(10,0)) AS CCRVD8_ORIG,
+        CAST(CCRVD8 AS TIMESTAMP_NTZ(7)) AS CCRVD8,
+        {{ trim_string('CCDLPC')}} AS CCDLPC,
+        {{ trim_string('CCDLCC')}} AS CCDLCC,
+        CAST(CCDLDH AS NUMBER(10,0)) AS CCDLDH,
+        {{ trim_string('CCDLDE')}} AS CCDLDE,
+        CAST(CCDLD8_ORIG AS NUMBER(10,0)) AS CCDLD8_ORIG,
+        CAST(CCDLD8 AS TIMESTAMP_NTZ(7)) AS CCDLD8,
+        {{ trim_string('CCDPPC')}} AS CCDPPC,
+        {{ trim_string('CCUFL1')}} AS CCUFL1,
+        {{ trim_string('CCUFL2')}} AS CCUFL2,
+        CAST(CCUAM1 AS NUMBER(13,2)) AS CCUAM1,
+        CAST(CCUAM2 AS NUMBER(13,2)) AS CCUAM2,
+        CAST(CCUC1H AS NUMBER(10,0)) AS CCUC1H,
+        {{ trim_string('CCUC1E')}} AS CCUC1E,
+        CAST(CCUC18_ORIG AS NUMBER(10,0)) AS CCUC18_ORIG,
+        CAST(CCUC18 AS TIMESTAMP_NTZ(7)) AS CCUC18,
+        CAST(CCUC2H AS NUMBER(10,0)) AS CCUC2H,
+        {{ trim_string('CCUC2E')}} AS CCUC2E,
+        CAST(CCUC28_ORIG AS NUMBER(10,0)) AS CCUC28_ORIG,
+        CAST(CCUC28 AS TIMESTAMP_NTZ(7)) AS CCUC28,
+        CAST(CCSICC AS NUMBER(5,0)) AS CCSICC,
+        {{ trim_string('CCDBR')}} AS CCDBR,
+        {{ trim_string('CCDBPN')}} AS CCDBPN,
+        {{ trim_string('CCDBST')}} AS CCDBST,
+        CAST(CCDBRH AS NUMBER(10,0)) AS CCDBRH,
+        {{ trim_string('CCDBRE')}} AS CCDBRE,
+        CAST(CCDBR8_ORIG AS NUMBER(10,0)) AS CCDBR8_ORIG,
+        CAST(CCDBR8 AS TIMESTAMP_NTZ(7)) AS CCDBR8,
+        {{ trim_string('CCDBRP')}} AS CCDBRP,
+        CAST(CCDBPH AS NUMBER(10,0)) AS CCDBPH,
+        {{ trim_string('CCDBPE')}} AS CCDBPE,
+        CAST(CCDBP8_ORIG AS NUMBER(10,0)) AS CCDBP8_ORIG,
+        CAST(CCDBP8 AS TIMESTAMP_NTZ(7)) AS CCDBP8,
+        CAST(CCDUNS AS NUMBER(10,0)) AS CCDUNS,
+        {{ trim_string('CCTTPT')}} AS CCTTPT,
+        {{ trim_string('CCORAC')}} AS CCORAC,
+        CAST(CCCLXH AS NUMBER(10,0)) AS CCCLXH,
+        {{ trim_string('CCCLXE')}} AS CCCLXE,
+        CAST(CCCLX8_ORIG AS NUMBER(10,0)) AS CCCLX8_ORIG,
+        CAST(CCCLX8 AS TIMESTAMP_NTZ(7)) AS CCCLX8,
+        CAST(CCLCXH AS NUMBER(10,0)) AS CCLCXH,
+        {{ trim_string('CCLCXE')}} AS CCLCXE,
+        CAST(CCLCX8_ORIG AS NUMBER(10,0)) AS CCLCX8_ORIG,
+        CAST(CCLCX8 AS TIMESTAMP_NTZ(7)) AS CCLCX8,
+        CAST(CCUCXH AS NUMBER(10,0)) AS CCUCXH,
+        {{ trim_string('CCUCXE')}} AS CCUCXE,
+        CAST(CCUCX8_ORIG AS NUMBER(10,0)) AS CCUCX8_ORIG,
+        CAST(CCUCX8 AS TIMESTAMP_NTZ(7)) AS CCUCX8,
+        CAST(CCAULH AS NUMBER(10,0)) AS CCAULH,
+        {{ trim_string('CCAULE')}} AS CCAULE,
+        CAST(CCAUL8_ORIG AS NUMBER(10,0)) AS CCAUL8_ORIG,
+        CAST(CCAUL8 AS TIMESTAMP_NTZ(7)) AS CCAUL8,
+        CAST(CCAURH AS NUMBER(10,0)) AS CCAURH,
+        {{ trim_string('CCAURE')}} AS CCAURE,
+        CAST(CCAUR8_ORIG AS NUMBER(10,0)) AS CCAUR8_ORIG,
+        CAST(CCAUR8 AS TIMESTAMP_NTZ(7)) AS CCAUR8,
+        CAST(CCAUVA AS NUMBER(13,2)) AS CCAUVA,
+        {{ trim_string('CCAUCR')}} AS CCAUCR,
+        {{ trim_string('CCCRCN')}} AS CCCRCN,
+        {{ trim_string('CCCRCT')}} AS CCCRCT,
+        {{ trim_string('CCCRCP')}} AS CCCRCP,
+        {{ trim_string('CCCRCF')}} AS CCCRCF,
+        {{ trim_string('CCAPCN')}} AS CCAPCN,
+        {{ trim_string('CCAPCT')}} AS CCAPCT,
+        {{ trim_string('CCAPCP')}} AS CCAPCP,
+        {{ trim_string('CCAPCF')}} AS CCAPCF,
+        {{ trim_string('CCCOCN')}} AS CCCOCN,
+        {{ trim_string('CCCOCT')}} AS CCCOCT,
+        {{ trim_string('CCCOCP')}} AS CCCOCP,
+        {{ trim_string('CCCOCF')}} AS CCCOCF,
+        CAST(CCUBAL AS NUMBER(13,2)) AS CCUBAL,
+        CAST(CCCBAL AS NUMBER(13,2)) AS CCCBAL,
+        CAST(CCOCNT AS NUMBER(10,0)) AS CCOCNT,
+        CAST(CCOOR1 AS NUMBER(13,2)) AS CCOOR1,
+        CAST(CCOOR2 AS NUMBER(13,2)) AS CCOOR2,
+        CAST(CCOOR3 AS NUMBER(13,2)) AS CCOOR3,
+        CAST(CCOOR4 AS NUMBER(13,2)) AS CCOOR4,
+        CAST(CCOOR5 AS NUMBER(13,2)) AS CCOOR5,
+        CAST(CCOOR6 AS NUMBER(13,2)) AS CCOOR6,
+        CAST(CCFCR1 AS NUMBER(13,2)) AS CCFCR1,
+        CAST(CCFCR2 AS NUMBER(13,2)) AS CCFCR2,
+        CAST(CCFCR3 AS NUMBER(13,2)) AS CCFCR3,
+        CAST(CCFCR4 AS NUMBER(13,2)) AS CCFCR4,
+        CAST(CCFCR5 AS NUMBER(13,2)) AS CCFCR5,
+        CAST(CCFCR6 AS NUMBER(13,2)) AS CCFCR6,
+        {{ trim_string('CCMSG1')}} AS CCMSG1,
+        {{ trim_string('CCMSG2')}} AS CCMSG2,
+        CAST(CCFIXH AS NUMBER(10,0)) AS CCFIXH,
+        {{ trim_string('CCFIXE')}} AS CCFIXE,
+        CAST(CCFIX8_ORIG AS NUMBER(10,0)) AS CCFIX8_ORIG,
+        CAST(CCFIX8 AS TIMESTAMP_NTZ(7)) AS CCFIX8,
+        CAST(CCLSDH AS NUMBER(10,0)) AS CCLSDH,
+        {{ trim_string('CCLSDE')}} AS CCLSDE,
+        CAST(CCLSD8_ORIG AS NUMBER(10,0)) AS CCLSD8_ORIG,
+        CAST(CCLSD8 AS TIMESTAMP_NTZ(7)) AS CCLSD8,
+        CAST(CCOPNH AS NUMBER(10,0)) AS CCOPNH,
+        {{ trim_string('CCOPNE')}} AS CCOPNE,
+        CAST(CCOPN8_ORIG AS NUMBER(10,0)) AS CCOPN8_ORIG,
+        CAST(CCOPN8 AS TIMESTAMP_NTZ(7)) AS CCOPN8,
+        CAST(CCACDH AS NUMBER(10,0)) AS CCACDH,
+        {{ trim_string('CCACDE')}} AS CCACDE,
+        CAST(CCACD8_ORIG AS NUMBER(10,0)) AS CCACD8_ORIG,
+        CAST(CCACD8 AS TIMESTAMP_NTZ(7)) AS CCACD8,
+        CAST(CCFSLH AS NUMBER(10,0)) AS CCFSLH,
+        {{ trim_string('CCFSLE')}} AS CCFSLE,
+        CAST(CCFSL8_ORIG AS NUMBER(10,0)) AS CCFSL8_ORIG,
+        CAST(CCFSL8 AS TIMESTAMP_NTZ(7)) AS CCFSL8,
+        CAST(CCLSLH AS NUMBER(10,0)) AS CCLSLH,
+        {{ trim_string('CCLSLE')}} AS CCLSLE,
+        CAST(CCLSL8_ORIG AS NUMBER(10,0)) AS CCLSL8_ORIG,
+        CAST(CCLSL8 AS TIMESTAMP_NTZ(7)) AS CCLSL8,
+        CAST(CCLSLA AS NUMBER(13,2)) AS CCLSLA,
+        CAST(CCLCNR AS NUMBER(10,0)) AS CCLCNR,
+        CAST(CCLCAH AS NUMBER(10,0)) AS CCLCAH,
+        {{ trim_string('CCLCAE')}} AS CCLCAE,
+        CAST(CCLCA8_ORIG AS NUMBER(10,0)) AS CCLCA8_ORIG,
+        CAST(CCLCA8 AS TIMESTAMP_NTZ(7)) AS CCLCA8,
+        CAST(CCLCAA AS NUMBER(13,2)) AS CCLCAA,
+        CAST(CCPCNR AS NUMBER(10,0)) AS CCPCNR,
+        CAST(CCPCAH AS NUMBER(10,0)) AS CCPCAH,
+        {{ trim_string('CCPCAE')}} AS CCPCAE,
+        CAST(CCPCA8_ORIG AS NUMBER(10,0)) AS CCPCA8_ORIG,
+        CAST(CCPCA8 AS TIMESTAMP_NTZ(7)) AS CCPCA8,
+        CAST(CCPCAA AS NUMBER(13,2)) AS CCPCAA,
+        CAST(CONCAT({{ trim_string('CCCO')}},'-',{{ trim_string('CCCUNO')}}) AS VARCHAR(50)) AS ACCOUNT_COMPOSITE_KEY,
+        CAST('Infopro' AS VARCHAR(50)) AS SOURCE_SYSTEM,
+        CAST('ODS_IFP_ARPCC_HIST' AS VARCHAR(200)) AS SOURCE_TABLE,
+        CAST(SYS_CDC_DTM AS TIMESTAMP_NTZ) AS SRC_CREATE_DTM,
+        CAST(SYS_CDC_DTM AS TIMESTAMP_NTZ) AS SRC_LAST_UPDATE_DTM,
+        CAST(SYS_ACTION_CD AS VARCHAR(1)) AS SRC_ACTION_CD,
+        CAST(SYS_DEL_IND AS VARCHAR(1)) AS SRC_DEL_IND,
+        CAST(BATCH_ID AS BIGINT) AS ODS_INS_BATCH_ID,
+        CAST(BATCH_ID AS BIGINT) AS ODS_UPD_BATCH_ID,
+        CAST(BATCH_TIMESTAMP AS TIMESTAMP_NTZ) AS ODS_INSERT_TIMESTAMP,
+        CAST(BATCH_TIMESTAMP AS TIMESTAMP_NTZ) AS ODS_UPDATE_TIMESTAMP,
+        CAST(STG_INSERT_TIMESTAMP AS TIMESTAMP_NTZ) AS STG_INSERT_TIMESTAMP,
+        CASE WHEN SYS_DEL_IND = 'Y' THEN 'DELETE' ELSE 'INSERT' END AS OPERATION_TYPE,
+        CAST(NULL AS VARCHAR(20)) AS DQ_STATUS,
+        CAST(NULL AS VARCHAR(50)) AS DQ_ERROR_CODE,
+        CAST(NULL AS VARCHAR(500)) AS DQ_ERROR_MESSAGE
+FROM INFOPRO.HISTORY.ODS_IFP_ARPCC_HIST
+CROSS JOIN CTE_BATCH_ID
+)
+
+{% endif %}
+
+SELECT
+*,
+{{ generate_hash_change( relation = this) }} AS HASH_CHANGE,
+{{ generate_hash_full( relation = this) }} AS HASH_FULL
+FROM {% if is_incremental() %}CTE_TRANSFORMED{% else %}CTE_HISTORICAL{% endif %}
+
+
+

@@ -48,6 +48,9 @@ models:
                 database: CDM
                 schema: WORKFORCE
                 tags: ["cdm", "workforce"]
+                customer:
+                    materialized: incremental
+                    tags: ["cdm", "customer"]
         gold:
             materialized: table
             core:
